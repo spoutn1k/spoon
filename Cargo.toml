@@ -13,4 +13,9 @@ categories = ["gui", "wasm", "web-programming"]
 [dependencies]
 yew = { version="0.20", features=["csr"] }
 ladle = { version="0.1", git="https://github.com/spoutn1k/ladle" }
+web-sys = "0.3.60"
+log = "0.4.6"
+wasm-logger = "0.2.0"
+wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.33"
+unidecode = "0.3.0"

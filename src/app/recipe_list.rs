@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
 use yew::prelude::*;
@@ -21,10 +22,70 @@ pub fn recipe_element(RecipeElementProps { id, name, on_click }: &RecipeElementP
     }
 }
 
+#[derive(Clone)]
+struct RecipeCreateState {
+    clicked: bool,
+    recipe_name: String,
+}
+
+#[derive(Properties, PartialEq, Clone)]
+pub struct RecipeCreateProps {
+    pub create_recipe: Callback<String>,
+}
+
+#[function_component(RecipeCreateButton)]
+pub fn recipe_create_button(RecipeCreateProps { create_recipe }: &RecipeCreateProps) -> Html {
+    let state = use_state(|| RecipeCreateState {
+        clicked: false,
+        recipe_name: String::from(""),
+    });
+
+    let cloned_state = state.clone();
+    let label_clicked = Callback::from(move |_| {
+        let mut data = cloned_state.deref().clone();
+        data.clicked = true;
+        cloned_state.set(data)
+    });
+
+    let cloned_state = state.clone();
+    let name_changed = Callback::from(move |e: Event| {
+        let target: EventTarget = e.target().expect("Error accessing pattern input");
+        let name = target.unchecked_into::<HtmlInputElement>().value();
+        let mut data = cloned_state.deref().clone();
+        data.recipe_name = name;
+        cloned_state.set(data);
+    });
+
+    let cloned_state = state.clone();
+    let create_handle = create_recipe.clone();
+    let name_submit = Callback::from(move |_| {
+        let mut data = cloned_state.deref().clone();
+        create_handle.emit(data.recipe_name);
+        data.clicked = false;
+        data.recipe_name = String::default();
+        cloned_state.set(data);
+    });
+
+    match (*state).clicked {
+        false => html! {
+            <li key="new" onclick={label_clicked}>
+                {"Add recipe"}
+            </li>
+        },
+        true => html! {
+            <li key="new">
+                <input type="text" value={state.recipe_name.clone()} onchange={name_changed} />
+                <input type="submit" onclick={name_submit}/>
+            </li>
+        },
+    }
+}
+
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeListProps {
     pub url: String,
     pub on_click: Callback<String>,
+    pub create_recipe: Callback<String>,
 }
 
 #[function_component(RecipeList)]
@@ -33,8 +94,9 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
     let pattern: String = (*pattern_handle).clone();
 
     let on_pattern_change = Callback::from(move |e: InputEvent| {
-        let target: EventTarget = e.target().expect("");
-        pattern_handle.set(target.unchecked_into::<HtmlInputElement>().value());
+        let target: EventTarget = e.target().expect("Error accessing pattern input");
+        let pattern = target.unchecked_into::<HtmlInputElement>().value();
+        pattern_handle.set(pattern);
     });
 
     let recipes = use_state(|| vec![]);
@@ -78,6 +140,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
         />
         <ul>
             {items}
+            <RecipeCreateButton create_recipe={props.create_recipe.clone()}/>
         </ul>
         </>
     }

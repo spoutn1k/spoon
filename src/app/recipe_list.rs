@@ -15,8 +15,8 @@ pub struct RecipeElementProps {
 pub fn recipe_element(RecipeElementProps { id, name, on_click }: &RecipeElementProps) -> Html {
     let on_recipe_select = {
         let on_click = on_click.clone();
-        let id = id.clone();
-        Callback::from(move |_| on_click.emit(id.clone()))
+        let id_cloned = id.clone();
+        Callback::from(move |_| on_click.emit(id_cloned.clone()))
     };
     html! {
         <li key={String::from(id)} onclick={on_recipe_select}>{name}</li>
@@ -33,6 +33,7 @@ struct RecipeCreateState {
 pub struct RecipeCreateProps {
     pub url: String,
     pub refresh_list: Callback<()>,
+    pub status: Callback<Message>,
 }
 
 #[function_component(RecipeCreateButton)]
@@ -62,9 +63,13 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
     let cloned_props = props.clone();
     let name_submit = Callback::from(move |_| {
         let mut data = cloned_state.deref().clone();
-        let url = cloned_props.url.clone();
+        let cloned_props = cloned_props.clone();
         wasm_bindgen_futures::spawn_local(async move {
-            ladle::recipe_create(url.as_str(), data.recipe_name.as_str()).await;
+            if let Err(error) =
+                ladle::recipe_create(cloned_props.url.as_str(), data.recipe_name.as_str()).await
+            {
+                cloned_props.status.emit(Message::Error(error.to_string()));
+            };
         });
         data.clicked = false;
         data.recipe_name = String::default();
@@ -172,6 +177,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
                 <RecipeCreateButton
                     url={props.url.clone()}
                     refresh_list={refresh_list}
+                    status={props.status.clone()}
                 />
             </ul>
         </div>

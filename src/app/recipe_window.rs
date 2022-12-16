@@ -1,3 +1,4 @@
+use crate::app::status_bar::Message;
 use futures::future::join_all;
 use pulldown_cmark::{html::push_html, Options, Parser};
 use yew::prelude::*;
@@ -7,6 +8,7 @@ use yew::{html, AttrValue, Html};
 pub struct RecipeWindowProps {
     pub url: String,
     pub recipe_id: Option<String>,
+    pub status: Callback<Message>,
 }
 
 fn parse_text(value: &str) -> String {
@@ -97,14 +99,17 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
     use_effect_with_deps(
         move |_| {
             let recipe_cloned = recipe_cloned.clone();
-            if let Some(id) = props_copy.recipe_id {
+            if let Some(id) = props_copy.recipe_id.clone() {
                 let recipe_init = recipe_cloned.clone();
-                let url = props_copy.url.clone();
+                let props_cloned = props_copy.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                     let mut recipes: Vec<ladle::models::Recipe> = vec![];
 
-                    if let Ok(recipe) = ladle::recipe_get(url.as_str(), id.as_str()).await {
-                        recipes.push(recipe);
+                    match ladle::recipe_get(props_cloned.url.as_str(), id.as_str()).await {
+                        Ok(recipe) => recipes.push(recipe),
+                        Err(message) => props_cloned
+                            .status
+                            .emit(Message::Error(message.to_string())),
                     }
 
                     loop {
@@ -114,7 +119,9 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
                             break;
                         }
 
-                        let fetches = missing.iter().map(|id| ladle::recipe_get(url.as_str(), id));
+                        let fetches = missing
+                            .iter()
+                            .map(|id| ladle::recipe_get(props_cloned.url.as_str(), id));
 
                         join_all(fetches)
                             .await

@@ -57,11 +57,12 @@ pub fn app() -> Html {
             <RecipeList
                 url={state.server.clone()}
                 on_click={on_recipe_select}
-                status={display_status}
+                status={display_status.clone()}
             />
             <RecipeWindow
                 url={state.server.clone()}
                 recipe_id={state.selected_recipe_id.clone()}
+                status={display_status}
             />
         </main>
     }

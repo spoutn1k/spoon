@@ -9,6 +9,7 @@ pub struct RecipeWindowProps {
     pub url: String,
     pub recipe_id: Option<String>,
     pub status: Callback<Message>,
+    pub set_edition: Callback<bool>,
 }
 
 fn parse_text(value: &str) -> String {
@@ -52,7 +53,7 @@ fn render_directions(data: &ladle::models::Recipe) -> Html {
     }
 }
 
-fn render_recipe(data: &Vec<ladle::models::Recipe>) -> Html {
+fn render_recipe(data: &Vec<ladle::models::Recipe>, edit: &Callback<bool>) -> Html {
     let main_recipe = data.first().unwrap();
     let requirements = data.iter().rev().map(render_requirements).collect::<Html>();
     let directions = data.iter().rev().map(render_directions).collect::<Html>();
@@ -69,6 +70,9 @@ fn render_recipe(data: &Vec<ladle::models::Recipe>) -> Html {
         })
         .collect::<Html>();
 
+    let edit = edit.clone();
+    let on_click_edit = Callback::from(move |_| edit.emit(true));
+
     html! {
         <div class="recipe-display">
             <div class="recipe-name">{main_recipe.name.as_str()}</div>
@@ -76,6 +80,9 @@ fn render_recipe(data: &Vec<ladle::models::Recipe>) -> Html {
             <ul>{requirements}</ul>
             <div class="recipe-directions">{directions}</div>
             <ul>{tags}</ul>
+            <div class="options">
+                <button onclick={on_click_edit}>{"Edit"}</button>
+            </div>
         </div>
     }
 }
@@ -141,6 +148,6 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
 
     match (*recipe).len() {
         0 => html! {<span>{"No data"}</span>},
-        _ => render_recipe(&recipe),
+        _ => render_recipe(&recipe, &props.set_edition),
     }
 }

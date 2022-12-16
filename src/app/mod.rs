@@ -1,10 +1,15 @@
 use std::ops::Deref;
+
+mod recipe_edit;
 mod recipe_list;
 mod recipe_window;
 mod status_bar;
+
+use recipe_edit::RecipeEditWindow;
 use recipe_list::RecipeList;
 use recipe_window::RecipeWindow;
 use status_bar::{Message, StatusBar};
+
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
 use yew::prelude::*;
@@ -12,40 +17,92 @@ use yew::prelude::*;
 #[derive(PartialEq, Clone)]
 struct AppState {
     server: String,
+    update: u32,
     selected_recipe_id: Option<String>,
     last_error: Message,
+    edition: bool,
 }
 
 #[function_component(App)]
 pub fn app() -> Html {
     let state = use_state_eq(|| AppState {
         server: String::from("http://localhost:8000"),
+        update: 0,
         selected_recipe_id: None,
         last_error: Message::None,
+        edition: false,
     });
 
-    let cloned_state = state.clone();
+    let state_cloned = state.clone();
     let on_server_change = Callback::from(move |e: Event| {
-        let mut data = cloned_state.deref().clone();
+        let mut data = state_cloned.deref().clone();
         let target: EventTarget = e.target().expect("");
         data.server = target.unchecked_into::<HtmlInputElement>().value();
-        log::info!("New server: {}", &data.server);
-        cloned_state.set(data);
+        data.update = data.update + 1;
+        state_cloned.set(data);
     });
 
-    let cloned_state = state.clone();
+    let state_cloned = state.clone();
     let on_recipe_select = Callback::from(move |recipe_id: String| {
-        let mut data = cloned_state.deref().clone();
+        let mut data = state_cloned.deref().clone();
         data.selected_recipe_id = Some(recipe_id);
-        cloned_state.set(data);
+        state_cloned.set(data);
     });
 
-    let cloned_state = state.clone();
+    let state_cloned = state.clone();
     let display_status = Callback::from(move |status: Message| {
-        let mut data = cloned_state.deref().clone();
+        let mut data = state_cloned.deref().clone();
         data.last_error = status;
-        cloned_state.set(data);
+        state_cloned.set(data);
     });
+
+    let state_cloned = state.clone();
+    let set_edit = Callback::from(move |edition: bool| {
+        let mut data = state_cloned.deref().clone();
+        data.edition = edition;
+        state_cloned.set(data);
+    });
+
+    let state_cloned = state.clone();
+    let display_status_cloned = display_status.clone();
+    let on_delete: Callback<()> = Callback::from(move |_| {
+        let state_cloned = state_cloned.clone();
+        let display_status = display_status_cloned.clone();
+        if let Some(id) = state_cloned.selected_recipe_id.clone() {
+            wasm_bindgen_futures::spawn_local(async move {
+                let mut data = state_cloned.deref().clone();
+
+                if let Err(message) = ladle::recipe_delete(data.server.as_str(), &id).await {
+                    display_status.emit(Message::Error(message.to_string()))
+                }
+
+                data.selected_recipe_id = None;
+                data.edition = false;
+                data.update = data.update + 1;
+                state_cloned.set(data)
+            });
+        }
+    });
+
+    let window = match state.edition {
+        true => html! {
+            <RecipeEditWindow
+                url={state.server.clone()}
+                recipe_id={state.selected_recipe_id.clone()}
+                status={display_status.clone()}
+                set_edition={set_edit}
+                on_delete={on_delete}
+            />
+        },
+        false => html! {
+            <RecipeWindow
+                url={state.server.clone()}
+                recipe_id={state.selected_recipe_id.clone()}
+                status={display_status.clone()}
+                set_edition={set_edit}
+            />
+        },
+    };
 
     html! {
         <main>
@@ -56,14 +113,11 @@ pub fn app() -> Html {
             />
             <RecipeList
                 url={state.server.clone()}
+                update={state.update}
                 on_click={on_recipe_select}
                 status={display_status.clone()}
             />
-            <RecipeWindow
-                url={state.server.clone()}
-                recipe_id={state.selected_recipe_id.clone()}
-                status={display_status}
-            />
+            {window}
         </main>
     }
 }

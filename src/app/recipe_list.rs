@@ -95,6 +95,7 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeListProps {
     pub url: String,
+    pub update: u32,
     pub on_click: Callback<String>,
     pub status: Callback<Message>,
 }
@@ -146,7 +147,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
     });
 
     let refresh_list_cloned = refresh_list.clone();
-    use_effect_with_deps(move |_| refresh_list_cloned.emit(()), props.url.clone());
+    use_effect_with_deps(move |_| refresh_list_cloned.emit(()), props.update);
 
     let items = state
         .recipes

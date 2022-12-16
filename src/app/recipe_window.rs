@@ -103,7 +103,7 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
                 wasm_bindgen_futures::spawn_local(async move {
                     let mut recipes: Vec<ladle::models::Recipe> = vec![];
 
-                    if let Some(recipe) = ladle::recipe_get(url.as_str(), id.as_str()).await {
+                    if let Ok(recipe) = ladle::recipe_get(url.as_str(), id.as_str()).await {
                         recipes.push(recipe);
                     }
 
@@ -120,8 +120,8 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
                             .await
                             .iter()
                             .for_each(|recipe_opt| match recipe_opt {
-                                Some(recipe) => recipes.push(recipe.clone()),
-                                None => (),
+                                Ok(recipe) => recipes.push(recipe.clone()),
+                                Err(_) => (),
                             });
                     }
 

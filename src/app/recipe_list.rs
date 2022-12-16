@@ -1,3 +1,4 @@
+use crate::app::status_bar::Message;
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
@@ -90,6 +91,7 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
 pub struct RecipeListProps {
     pub url: String,
     pub on_click: Callback<String>,
+    pub status: Callback<Message>,
 }
 
 #[derive(Properties, PartialEq, Clone)]
@@ -113,17 +115,27 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
         cloned_state.set(data);
     });
 
-    let url: String = props.url.clone();
+    let props_cloned = props.clone();
     let cloned_state = state.clone();
 
     let refresh_list = Callback::from(move |_| {
+        let props_cloned = props_cloned.clone();
         let cloned_state = cloned_state.clone();
-        let url = url.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = cloned_state.deref().clone();
-            let fetched_recipes = ladle::recipe_index(url.as_str(), data.pattern.as_str()).await;
+            let fetched_recipes =
+                ladle::recipe_index(props_cloned.url.as_str(), data.pattern.as_str()).await;
 
-            data.recipes = fetched_recipes.unwrap_or(vec![]);
+            match fetched_recipes {
+                Ok(index) => data.recipes = index,
+                Err(message) => {
+                    props_cloned
+                        .status
+                        .emit(Message::Error(message.to_string()));
+                    data.recipes = vec![];
+                }
+            }
+
             cloned_state.set(data);
         });
     });

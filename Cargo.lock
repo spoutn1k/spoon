@@ -55,9 +55,9 @@ checksum = "dfb24e866b15a1af2a1b663f10c6b6b8f397a84aadb828f12e5b289ec23a3a3c"
 
 [[package]]
 name = "cc"
-version = "1.0.77"
+version = "1.0.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9f73505338f7d905b19d18738976aae232eb46b8efc15554ffc56deb5d9ebe4"
+checksum = "a20104e2335ce8a659d6dd92a51a767a0c062599c73b343fd152cb401e828c3d"
 
 [[package]]
 name = "cfg-if"
@@ -519,9 +519,9 @@ dependencies = [
 
 [[package]]
 name = "implicit-clone"
-version = "0.3.4"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "649cb12b410f9519ebc452e87a8e32c4f8cfc080968cf9b4db43d40d1da4d7e4"
+checksum = "40fc102e70475c320b185cd18c1e48bba2d7210b63970a4d581ef903e4368ef7"
 dependencies = [
  "indexmap",
 ]
@@ -569,7 +569,7 @@ dependencies = [
 [[package]]
 name = "ladle"
 version = "0.1.0"
-source = "git+https://github.com/spoutn1k/ladle#8021ec0f6f0f94504ab3850e8867f2a1d55f4b59"
+source = "git+https://github.com/spoutn1k/ladle#7ed3d9d8602fb24ab9dcc2de27b7ae36c27ca2c5"
 dependencies = [
  "reqwest",
  "serde",

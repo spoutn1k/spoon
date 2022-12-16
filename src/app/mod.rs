@@ -36,14 +36,6 @@ pub fn app() -> Html {
         cloned_state.set(data);
     });
 
-    let cloned_state = state.clone();
-    let recipe_create = Callback::from(move |recipe_name: String| {
-        let cloned_state = cloned_state.clone();
-        wasm_bindgen_futures::spawn_local(async move {
-            ladle::recipe_create(cloned_state.server.as_str(), recipe_name.as_str()).await;
-        });
-    });
-
     html! {
         <main>
             <input type="text"
@@ -53,7 +45,6 @@ pub fn app() -> Html {
             <RecipeList
                 url={state.server.clone()}
                 on_click={on_recipe_select}
-                create_recipe={recipe_create}
             />
             <RecipeWindow
                 url={state.server.clone()}

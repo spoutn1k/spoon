@@ -9,11 +9,7 @@ pub struct RecipeWindowProps {
 }
 
 fn parse_text(value: &str) -> String {
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_TABLES);
-    options.insert(Options::ENABLE_FOOTNOTES);
-    options.insert(Options::ENABLE_STRIKETHROUGH);
-    options.insert(Options::ENABLE_TASKLISTS);
+    let options = Options::empty();
 
     let parser = Parser::new_ext(&value, options);
     let mut parsed_text = String::new();
@@ -66,7 +62,7 @@ fn render_recipe(data: &ladle::models::Recipe) -> Html {
     let parsed = Html::from_html_unchecked(AttrValue::from(parse_html));
 
     html! {
-        <div>
+        <div class="recipe-display">
             <div class="recipe-name">{data.name}</div>
             <div class="recipe-author">{data.author}</div>
             <ul>{dependencies}</ul>

@@ -30,11 +30,12 @@ struct RecipeCreateState {
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeCreateProps {
-    pub create_recipe: Callback<String>,
+    pub url: String,
+    pub refresh_list: Callback<()>,
 }
 
 #[function_component(RecipeCreateButton)]
-pub fn recipe_create_button(RecipeCreateProps { create_recipe }: &RecipeCreateProps) -> Html {
+pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
     let state = use_state(|| RecipeCreateState {
         clicked: false,
         recipe_name: String::from(""),
@@ -57,13 +58,17 @@ pub fn recipe_create_button(RecipeCreateProps { create_recipe }: &RecipeCreatePr
     });
 
     let cloned_state = state.clone();
-    let create_handle = create_recipe.clone();
+    let cloned_props = props.clone();
     let name_submit = Callback::from(move |_| {
         let mut data = cloned_state.deref().clone();
-        create_handle.emit(data.recipe_name);
+        let url = cloned_props.url.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            ladle::recipe_create(url.as_str(), data.recipe_name.as_str()).await;
+        });
         data.clicked = false;
         data.recipe_name = String::default();
         cloned_state.set(data);
+        cloned_props.refresh_list.emit(());
     });
 
     match (*state).clicked {
@@ -85,63 +90,78 @@ pub fn recipe_create_button(RecipeCreateProps { create_recipe }: &RecipeCreatePr
 pub struct RecipeListProps {
     pub url: String,
     pub on_click: Callback<String>,
-    pub create_recipe: Callback<String>,
+}
+
+#[derive(Properties, PartialEq, Clone)]
+pub struct RecipeListState {
+    pattern: String,
+    recipes: Vec<ladle::models::Recipe>,
 }
 
 #[function_component(RecipeList)]
 pub fn recipe_list(props: &RecipeListProps) -> Html {
-    let pattern_handle = use_state(|| String::from(""));
-    let pattern: String = (*pattern_handle).clone();
-
-    let on_pattern_change = Callback::from(move |e: InputEvent| {
-        let target: EventTarget = e.target().expect("Error accessing pattern input");
-        let pattern = target.unchecked_into::<HtmlInputElement>().value();
-        pattern_handle.set(pattern);
+    let state = use_state(|| RecipeListState {
+        pattern: String::default(),
+        recipes: vec![],
     });
 
-    let recipes = use_state(|| vec![]);
-    {
-        let recipes = recipes.clone();
-        let url: String = props.url.clone();
-        let pattern = pattern.clone();
-        use_effect_with_deps(
-            move |_| {
-                wasm_bindgen_futures::spawn_local(async move {
-                    let fetched_recipes = ladle::recipe_index(url.as_str(), pattern.as_str()).await;
+    let cloned_state = state.clone();
+    let on_pattern_change = Callback::from(move |e: InputEvent| {
+        let target: EventTarget = e.target().expect("Error accessing pattern input");
+        let mut data = cloned_state.deref().clone();
+        data.pattern = target.unchecked_into::<HtmlInputElement>().value();
+        cloned_state.set(data);
+    });
 
-                    match fetched_recipes {
-                        Some(list) => recipes.set(list),
-                        None => recipes.set(vec![]),
-                    }
-                });
-            },
-            props.url.clone(),
-        );
-    }
+    let url: String = props.url.clone();
+    let cloned_state = state.clone();
 
-    let items = recipes
+    let refresh_list = Callback::from(move |_| {
+        let cloned_state = cloned_state.clone();
+        let url = url.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut data = cloned_state.deref().clone();
+            let fetched_recipes = ladle::recipe_index(url.as_str(), data.pattern.as_str()).await;
+
+            data.recipes = fetched_recipes.unwrap_or(vec![]);
+            cloned_state.set(data);
+        });
+    });
+
+    let refresh_list_cloned = refresh_list.clone();
+    use_effect_with_deps(move |_| refresh_list_cloned.emit(()), props.url.clone());
+
+    let items = state
+        .recipes
         .iter()
         .filter(|recipe| {
-            unidecode::unidecode(&recipe.name.to_lowercase()).contains(&pattern.to_lowercase())
+            unidecode::unidecode(&recipe.name.to_lowercase())
+                .contains(&state.pattern.to_lowercase())
         })
         .map(|recipe| {
-            let recipe = recipe.clone();
             html! {
-                <RecipeElement id={recipe.id} name={recipe.name}  on_click={props.on_click.clone()}/>
+                <RecipeElement
+                    id={recipe.id.clone()}
+                    name={recipe.name.clone()}
+                    on_click={props.on_click.clone()}
+                />
             }
         })
         .collect::<Html>();
 
     html! {
-        <>
-        <input type="text"
-            oninput={on_pattern_change}
-            value={pattern}
-        />
-        <ul>
-            {items}
-            <RecipeCreateButton create_recipe={props.create_recipe.clone()}/>
-        </ul>
-        </>
+        <div class="recipe-list">
+            <input type="text"
+                oninput={on_pattern_change}
+                value={state.pattern.clone()}
+            />
+            <ul>
+                {items}
+                <RecipeCreateButton
+                    url={props.url.clone()}
+                    refresh_list={refresh_list}
+                />
+            </ul>
+        </div>
     }
 }

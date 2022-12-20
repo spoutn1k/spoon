@@ -11,6 +11,7 @@ struct RequirementAddItemProps {
     url: String,
     recipe_id: String,
     status: Callback<Message>,
+    refresh: Callback<()>,
 }
 
 #[derive(PartialEq, Clone)]
@@ -46,8 +47,9 @@ fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
     let state_cloned = state.clone();
     let create_requirement = Callback::from(move |_| {
         let props_cloned = props_cloned.clone();
-        let data = state_cloned.deref().clone();
+        let state_cloned = state_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
+            let mut data = state_cloned.deref().clone();
             match ladle::requirement_create_from_ingredient_name(
                 props_cloned.url.as_str(),
                 props_cloned.recipe_id.as_str(),
@@ -59,8 +61,14 @@ fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
                 Err(message) => props_cloned
                     .status
                     .emit(Message::Error(message.to_string())),
-                _ => (),
+                Ok(_) => {
+                    props_cloned.refresh.emit(());
+                    data.ingredient_buffer = String::default();
+                    data.quantity_buffer = String::default();
+                }
             }
+
+            state_cloned.set(data);
         });
     });
 
@@ -87,6 +95,7 @@ struct RequirementEditItemProps {
     recipe_id: String,
     requirement: ladle::models::Requirement,
     status: Callback<Message>,
+    refresh: Callback<()>,
 }
 
 #[function_component(RequirementEditItem)]
@@ -117,16 +126,14 @@ fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
                 Err(message) => props_cloned
                     .status
                     .emit(Message::Error(message.to_string())),
-                _ => (),
+                Ok(_) => props_cloned.refresh.emit(()),
             }
         });
     });
 
     let props_cloned = props.clone();
-    let state_cloned = state.clone();
     let delete_requirement = Callback::from(move |_| {
         let props_cloned = props_cloned.clone();
-        let state_cloned = state_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             match ladle::requirement_delete(
                 props_cloned.url.as_str(),
@@ -138,7 +145,7 @@ fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
                 Err(message) => props_cloned
                     .status
                     .emit(Message::Error(message.to_string())),
-                _ => (),
+                Ok(_) => props_cloned.refresh.emit(()),
             }
         });
     });
@@ -194,6 +201,110 @@ fn dependency_edit_item(props: &DependencyEditItemProps) -> Html {
 }
 
 #[derive(Properties, PartialEq, Clone)]
+struct TagEditItemProps {
+    url: String,
+    recipe_id: String,
+    label: ladle::models::Label,
+    status: Callback<Message>,
+    refresh: Callback<()>,
+}
+
+#[function_component(TagEditItem)]
+fn tag_edit_item(props: &TagEditItemProps) -> Html {
+    let props_cloned = props.clone();
+    let on_tag_delete = Callback::from(move |_| {
+        let props_cloned = props_cloned.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            match ladle::recipe_untag(
+                props_cloned.url.as_str(),
+                props_cloned.recipe_id.as_str(),
+                props_cloned.label.id.as_str(),
+            )
+            .await
+            {
+                Ok(_) => props_cloned.refresh.emit(()),
+                Err(message) => props_cloned
+                    .status
+                    .emit(Message::Error(message.to_string())),
+            }
+        });
+    });
+
+    html! {
+        <li key={props.label.id.as_str()}>
+            <span>{props.label.name.as_str()}</span>
+            <button onclick={on_tag_delete}>{"Delete"}</button>
+        </li>
+    }
+}
+
+#[derive(Properties, PartialEq, Clone)]
+struct TagAddItemProps {
+    url: String,
+    recipe_id: String,
+    status: Callback<Message>,
+    refresh: Callback<()>,
+}
+
+#[derive(PartialEq, Clone)]
+struct TagAddItemState {
+    label_name_buffer: String,
+}
+
+#[function_component(TagAddItem)]
+fn tag_add_item(props: &TagAddItemProps) -> Html {
+    let state = use_state(|| TagAddItemState {
+        label_name_buffer: String::default(),
+    });
+
+    let state_cloned = state.clone();
+    let on_label_edit = Callback::from(move |e: Event| {
+        let mut data = state_cloned.deref().clone();
+        let target: EventTarget = e.target().expect("");
+        data.label_name_buffer = target.unchecked_into::<HtmlInputElement>().value();
+        state_cloned.set(data);
+    });
+
+    let props_cloned = props.clone();
+    let state_cloned = state.clone();
+    let create_tag = Callback::from(move |_| {
+        let props_cloned = props_cloned.clone();
+        let state_cloned = state_cloned.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut data = state_cloned.deref().clone();
+            match ladle::recipe_tag(
+                props_cloned.url.as_str(),
+                props_cloned.recipe_id.as_str(),
+                data.label_name_buffer.as_str(),
+            )
+            .await
+            {
+                Ok(_) => {
+                    props_cloned.refresh.emit(());
+                    data.label_name_buffer = String::default();
+                }
+                Err(message) => props_cloned
+                    .status
+                    .emit(Message::Error(message.to_string())),
+            }
+
+            state_cloned.set(data);
+        });
+    });
+
+    html! {
+        <li key={"tag_add"}>
+            <input
+                type="text"
+                value={(*state).label_name_buffer.clone()}
+                onchange={on_label_edit}
+            />
+            <button onclick={create_tag}>{"Add"}</button>
+        </li>
+    }
+}
+
+#[derive(Properties, PartialEq, Clone)]
 pub struct RecipeEditWindowProps {
     pub url: String,
     pub recipe_id: Option<String>,
@@ -221,32 +332,37 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
 
     let state_cloned = state.clone();
     let props_cloned = props.clone();
-    use_effect_with_deps(
-        move |_| {
-            let state_cloned = state_cloned.clone();
-            if let Some(id) = props_cloned.recipe_id.clone() {
-                let props_cloned = props_cloned.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    let mut data = state_cloned.deref().clone();
+    let refresh_recipe: Callback<()> = Callback::from(move |_| {
+        let recipe_id = props_cloned.recipe_id.clone().unwrap_or_else(|| {
+            props_cloned.status.emit(Message::Info(String::from(
+                "Attempted to edit empty recipe",
+            )));
+            String::default()
+        });
 
-                    match ladle::recipe_get(props_cloned.url.as_str(), id.as_str()).await {
-                        Ok(recipe) => {
-                            data.name_buffer = recipe.name.clone();
-                            data.author_buffer = recipe.author.clone();
-                            data.directions_buffer = recipe.directions.clone();
-                            data.recipe = Some(recipe);
-                        }
-                        Err(message) => props_cloned
-                            .status
-                            .emit(Message::Error(message.to_string())),
-                    }
+        let state_cloned = state_cloned.clone();
+        let props_cloned = props_cloned.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut data = state_cloned.deref().clone();
 
-                    state_cloned.set(data)
-                });
+            match ladle::recipe_get(props_cloned.url.as_str(), recipe_id.as_str()).await {
+                Ok(recipe) => {
+                    data.name_buffer = recipe.name.clone();
+                    data.author_buffer = recipe.author.clone();
+                    data.directions_buffer = recipe.directions.clone();
+                    data.recipe = Some(recipe);
+                }
+                Err(message) => props_cloned
+                    .status
+                    .emit(Message::Error(message.to_string())),
             }
-        },
-        props.clone(),
-    );
+
+            state_cloned.set(data)
+        });
+    });
+
+    let refresh_recipe_cloned = refresh_recipe.clone();
+    use_effect_with_deps(move |_| refresh_recipe_cloned.emit(()), props.clone());
 
     let state_cloned = state.clone();
     let props_cloned = props.clone();
@@ -279,6 +395,23 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                         recipe_id={recipe.id.clone()}
                         requirement={r.clone()}
                         status={props_cloned.status.clone()}
+                        refresh={refresh_recipe.clone()}
+                    />
+                }
+            })
+            .collect::<Html>();
+
+        let tags = recipe
+            .tags
+            .iter()
+            .map(|t| {
+                html! {
+                    <TagEditItem
+                        url={props_cloned.url.clone()}
+                        recipe_id={recipe.id.clone()}
+                        label={t.clone()}
+                        status={props_cloned.status.clone()}
+                        refresh={refresh_recipe.clone()}
                     />
                 }
             })
@@ -309,12 +442,23 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                         url={props_cloned.url.clone()}
                         recipe_id={recipe.id.clone()}
                         status={props_cloned.status.clone()}
+                        refresh={refresh_recipe.clone()}
                     />
                 </ul>
                 <textarea
                     class="recipe-directions edit"
                     value={state_cloned.directions_buffer.clone()}
                 />
+                <button>{"Update description"}</button>
+                <ul>
+                    {tags}
+                    <TagAddItem
+                        url={props_cloned.url.clone()}
+                        recipe_id={recipe.id.clone()}
+                        status={props_cloned.status.clone()}
+                        refresh={refresh_recipe.clone()}
+                    />
+                </ul>
                 <div class="options">
                     <button onclick={on_click_edit}>{"Done"}</button>
                     <button onclick={on_click_delete}>{"Delete"}</button>

@@ -46,6 +46,7 @@ pub fn app() -> Html {
     let on_recipe_select = Callback::from(move |recipe_id: String| {
         let mut data = state_cloned.deref().clone();
         data.selected_recipe_id = Some(recipe_id);
+        data.edition = false;
         state_cloned.set(data);
     });
 

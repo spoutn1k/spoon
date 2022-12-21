@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Deref;
 
 use crate::app::status_bar::Message;
@@ -170,6 +171,7 @@ struct DependencyEditItemProps {
     recipe_id: String,
     dependency: ladle::models::Dependency,
     status: Callback<Message>,
+    refresh: Callback<()>,
 }
 
 #[function_component(DependencyEditItem)]
@@ -178,16 +180,17 @@ fn dependency_edit_item(props: &DependencyEditItemProps) -> Html {
     let on_dependency_delete = Callback::from(move |_| {
         let props_cloned = props_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
-            if let Err(message) = ladle::recipe_unlink(
+            match ladle::recipe_unlink(
                 props_cloned.url.as_str(),
                 props_cloned.recipe_id.as_str(),
                 props_cloned.dependency.id.as_str(),
             )
             .await
             {
-                props_cloned
+                Ok(()) => props_cloned.refresh.emit(()),
+                Err(message) => props_cloned
                     .status
-                    .emit(Message::Error(message.to_string()));
+                    .emit(Message::Error(message.to_string())),
             }
         });
     });
@@ -196,6 +199,100 @@ fn dependency_edit_item(props: &DependencyEditItemProps) -> Html {
         <li key={props.dependency.id.as_str()}>
             <span>{props.dependency.name.as_str()}</span>
             <button onclick={on_dependency_delete}>{"Delete"}</button>
+        </li>
+    }
+}
+
+#[derive(Properties, PartialEq, Clone)]
+struct DependencyAddItemProps {
+    url: String,
+    recipe_id: String,
+    status: Callback<Message>,
+    refresh: Callback<()>,
+}
+
+#[derive(PartialEq, Clone)]
+struct DependencyAddItemState {
+    dependency_id_buffer: Option<String>,
+    choices: Vec<ladle::models::Recipe>,
+}
+
+#[function_component(DependencyAddItem)]
+fn dependency_add_item(props: &TagAddItemProps) -> Html {
+    let state = use_state(|| DependencyAddItemState {
+        dependency_id_buffer: None,
+        choices: vec![],
+    });
+
+    let props_cloned = props.clone();
+    let state_cloned = state.clone();
+    let refresh_selection = Callback::from(move |_| {
+        let props_cloned = props_cloned.clone();
+        let state_cloned = state_cloned.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut data = state_cloned.deref().clone();
+            match ladle::recipe_index(props_cloned.url.as_str(), "").await {
+                Ok(recipes) => {
+                    data.choices = recipes;
+                    state_cloned.set(data);
+                }
+                Err(message) => props_cloned
+                    .status
+                    .emit(Message::Error(message.to_string())),
+            }
+        })
+    });
+
+    use_effect_with_deps(move |_| refresh_selection.emit(()), props.clone());
+
+    let state_cloned = state.clone();
+    let on_dependency_select = Callback::from(move |e: Event| {
+        let mut data = state_cloned.deref().clone();
+        let target: EventTarget = e.target().expect("");
+        data.dependency_id_buffer = Some(target.unchecked_into::<HtmlInputElement>().value());
+        state_cloned.set(data);
+    });
+
+    let props_cloned = props.clone();
+    let state_cloned = state.clone();
+    let create_dependency = Callback::from(move |_| {
+        let props_cloned = props_cloned.clone();
+        let state_cloned = state_cloned.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut data = state_cloned.deref().clone();
+            match ladle::recipe_link(
+                props_cloned.url.as_str(),
+                props_cloned.recipe_id.as_str(),
+                data.dependency_id_buffer.clone().unwrap().as_str(),
+            )
+            .await
+            {
+                Ok(_) => {
+                    props_cloned.refresh.emit(());
+                    data.dependency_id_buffer = None;
+                }
+                Err(message) => props_cloned
+                    .status
+                    .emit(Message::Error(message.to_string())),
+            }
+
+            state_cloned.set(data);
+        });
+    });
+
+    let options = state
+        .choices
+        .iter()
+        .map(|r| html! {<option value={r.id.clone()}>{r.name.clone()}</option>})
+        .collect::<Html>();
+
+    html! {
+        <li key={"dependency_add"}>
+            <select onchange={on_dependency_select}>
+            <option hidden={true} disabled={true} selected={true}>{"Recipes"}</option>
+            {options}
+            </select>
+            <button onclick={create_dependency}>{"Add"}</button>
         </li>
     }
 }
@@ -331,6 +428,30 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
     });
 
     let state_cloned = state.clone();
+    let on_name_edit = Callback::from(move |e: Event| {
+        let mut data = state_cloned.deref().clone();
+        let target: EventTarget = e.target().expect("");
+        data.name_buffer = target.unchecked_into::<HtmlInputElement>().value();
+        state_cloned.set(data);
+    });
+
+    let state_cloned = state.clone();
+    let on_author_edit = Callback::from(move |e: Event| {
+        let mut data = state_cloned.deref().clone();
+        let target: EventTarget = e.target().expect("");
+        data.author_buffer = target.unchecked_into::<HtmlInputElement>().value();
+        state_cloned.set(data);
+    });
+
+    let state_cloned = state.clone();
+    let on_directions_edit = Callback::from(move |e: Event| {
+        let mut data = state_cloned.deref().clone();
+        let target: EventTarget = e.target().expect("");
+        data.directions_buffer = target.unchecked_into::<HtmlInputElement>().value();
+        state_cloned.set(data);
+    });
+
+    let state_cloned = state.clone();
     let props_cloned = props.clone();
     let refresh_recipe: Callback<()> = Callback::from(move |_| {
         let recipe_id = props_cloned.recipe_id.clone().unwrap_or_else(|| {
@@ -361,6 +482,70 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
         });
     });
 
+    let props_cloned = props.clone();
+    let state_cloned = state.clone();
+    let refresh_recipe_cloned = refresh_recipe.clone();
+    let update_name = Callback::from(move |_| {
+        if state_cloned.recipe.is_some() {
+            let props_cloned = props_cloned.clone();
+            let state_cloned = state_cloned.clone();
+            let refresh_recipe_cloned = refresh_recipe_cloned.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let params = HashMap::from([("name", state_cloned.name_buffer.as_str())]);
+                let id = state_cloned.recipe.clone().unwrap().id.clone();
+                match ladle::recipe_update(props_cloned.url.as_str(), id.as_str(), params).await {
+                    Ok(_) => refresh_recipe_cloned.emit(()),
+                    Err(message) => props_cloned
+                        .status
+                        .emit(Message::Error(message.to_string())),
+                }
+            });
+        }
+    });
+
+    let props_cloned = props.clone();
+    let state_cloned = state.clone();
+    let refresh_recipe_cloned = refresh_recipe.clone();
+    let update_author = Callback::from(move |_| {
+        if state_cloned.recipe.is_some() {
+            let props_cloned = props_cloned.clone();
+            let state_cloned = state_cloned.clone();
+            let refresh_recipe_cloned = refresh_recipe_cloned.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let params = HashMap::from([("author", state_cloned.author_buffer.as_str())]);
+                let id = state_cloned.recipe.clone().unwrap().id.clone();
+                match ladle::recipe_update(props_cloned.url.as_str(), id.as_str(), params).await {
+                    Ok(_) => refresh_recipe_cloned.emit(()),
+                    Err(message) => props_cloned
+                        .status
+                        .emit(Message::Error(message.to_string())),
+                }
+            });
+        }
+    });
+
+    let props_cloned = props.clone();
+    let state_cloned = state.clone();
+    let refresh_recipe_cloned = refresh_recipe.clone();
+    let update_directions = Callback::from(move |_| {
+        if state_cloned.recipe.is_some() {
+            let props_cloned = props_cloned.clone();
+            let state_cloned = state_cloned.clone();
+            let refresh_recipe_cloned = refresh_recipe_cloned.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let params =
+                    HashMap::from([("directions", state_cloned.directions_buffer.as_str())]);
+                let id = state_cloned.recipe.clone().unwrap().id.clone();
+                match ladle::recipe_update(props_cloned.url.as_str(), id.as_str(), params).await {
+                    Ok(_) => refresh_recipe_cloned.emit(()),
+                    Err(message) => props_cloned
+                        .status
+                        .emit(Message::Error(message.to_string())),
+                }
+            });
+        }
+    });
+
     let refresh_recipe_cloned = refresh_recipe.clone();
     use_effect_with_deps(move |_| refresh_recipe_cloned.emit(()), props.clone());
 
@@ -380,6 +565,7 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                         recipe_id={recipe.id.clone()}
                         dependency={d.clone()}
                         status={props_cloned.status.clone()}
+                        refresh={refresh_recipe.clone()}
                     />
                 }
             })
@@ -422,19 +608,27 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                 <div>
                     <input type="text"
                         class="recipe-name edit"
+                        onchange={on_name_edit}
                         value={state_cloned.name_buffer.clone()}
                     />
-                    <button>{"Update"}</button>
+                    <button onclick={update_name}>{"Update"}</button>
                 </div>
                 <div>
                     <input type="text"
                         class="recipe-author edit"
+                        onchange={on_author_edit}
                         value={state_cloned.author_buffer.clone()}
                     />
-                    <button>{"Update"}</button>
+                    <button onclick={update_author}>{"Update"}</button>
                 </div>
                 <ul>
                     {dependencies}
+                    <DependencyAddItem
+                        url={props_cloned.url.clone()}
+                        recipe_id={recipe.id.clone()}
+                        status={props_cloned.status.clone()}
+                        refresh={refresh_recipe.clone()}
+                    />
                 </ul>
                 <ul>
                     {requirements}
@@ -447,9 +641,10 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                 </ul>
                 <textarea
                     class="recipe-directions edit"
+                    onchange={on_directions_edit}
                     value={state_cloned.directions_buffer.clone()}
                 />
-                <button>{"Update description"}</button>
+                <button onclick={update_directions}>{"Update directions"}</button>
                 <ul>
                     {tags}
                     <TagAddItem

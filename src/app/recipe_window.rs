@@ -87,14 +87,14 @@ fn render_recipe(data: &Vec<ladle::models::Recipe>, edit: &Callback<bool>) -> Ht
     }
 }
 
-fn calc_missing<'a>(list: &'a Vec<ladle::models::Recipe>) -> Vec<&'a str> {
+fn calc_missing(list: &Vec<ladle::models::Recipe>) -> Vec<&str> {
     list.iter()
         .flat_map(|r| r.dependencies.iter().map(|d| d.id.as_str()))
         .filter(|id| {
             let fetched = list.iter().map(|r| r.id.as_str()).collect::<Vec<&str>>();
             !fetched.contains(id)
         })
-        .collect::<Vec<&str>>()
+        .collect()
 }
 
 #[function_component(RecipeWindow)]

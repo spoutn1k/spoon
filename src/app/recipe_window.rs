@@ -28,7 +28,7 @@ fn render_requirements(data: &ladle::models::Recipe) -> Html {
         .iter()
         .map(|requirement| {
             html! {
-                <li key={requirement.ingredient.id.clone()}>
+                <li class="requirement" key={requirement.ingredient.id.clone()}>
                     <span class="requirement-ingredient">{requirement.ingredient.name.clone()}</span>
                     <span class="requirement-quantity">{requirement.quantity.clone()}</span>
                 </li>
@@ -37,9 +37,9 @@ fn render_requirements(data: &ladle::models::Recipe) -> Html {
         .collect::<Html>();
 
     html! {
-        <li key={data.id.as_str()}>
-            <p>{format!("Pour {}:", data.name)}</p>
-            <ul>{requirements}</ul>
+        <li class="dependency-requirement" key={data.id.as_str()}>
+            <h3 class="dependency-header">{format!("Pour {}:", data.name)}</h3>
+            <ul class="requirement-list">{requirements}</ul>
         </li>
     }
 }
@@ -75,13 +75,20 @@ fn render_recipe(data: &Vec<ladle::models::Recipe>, edit: &Callback<bool>) -> Ht
 
     html! {
         <div class="recipe-display">
-            <div class="recipe-name">{main_recipe.name.as_str()}</div>
-            <div class="recipe-author">{main_recipe.author.as_str()}</div>
-            <ul>{requirements}</ul>
+            <div class="recipe-header">
+                <h1 class="recipe-name">{main_recipe.name.as_str()}</h1>
+                <div class="recipe-author">{main_recipe.author.as_str()}</div>
+            </div>
+            <ul class="recipe-tags">{tags}</ul>
+            <h2 class="recipe-ingredients-label">{"Ingrédients"}</h2>
+            <ul class="recipe-ingredients">{requirements}</ul>
+            <h2 class="recipe-directions-label">{"Préparation"}</h2>
             <div class="recipe-directions">{directions}</div>
-            <ul>{tags}</ul>
             <div class="options">
-                <button onclick={on_click_edit}>{"Edit"}</button>
+                <button
+                    class="recipe-edit"
+                    onclick={on_click_edit}
+                >{"Edit"}</button>
             </div>
         </div>
     }
@@ -147,7 +154,11 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
     );
 
     match (*recipe).len() {
-        0 => html! {<span>{"No data"}</span>},
+        0 => html! {
+            <div class="recipe-display">
+                <span>{"No data"}</span>
+            </div>
+        },
         _ => render_recipe(&recipe, &props.set_edition),
     }
 }

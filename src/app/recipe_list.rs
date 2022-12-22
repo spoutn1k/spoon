@@ -133,7 +133,10 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
                 ladle::recipe_index(props_cloned.url.as_str(), data.pattern.as_str()).await;
 
             match fetched_recipes {
-                Ok(index) => data.recipes = index,
+                Ok(mut index) => {
+                    index.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+                    data.recipes = index
+                }
                 Err(message) => {
                     props_cloned
                         .status

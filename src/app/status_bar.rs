@@ -16,7 +16,7 @@ pub struct StatusBarProps {
 pub fn status_bar(props: &StatusBarProps) -> Html {
     match &props.current {
         Message::None => html! {},
-        Message::Info(message) => html! {<div>{message.as_str()}</div>},
-        Message::Error(message) => html! {<div>{message.as_str()}</div>},
+        Message::Info(message) => html! {<div class={"status info"}>{message.as_str()}</div>},
+        Message::Error(message) => html! {<div class={"status error"}>{message.as_str()}</div>},
     }
 }

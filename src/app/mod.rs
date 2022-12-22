@@ -109,6 +109,7 @@ pub fn app() -> Html {
         <main>
             <StatusBar current={state.last_error.clone()} />
             <input type="text"
+                class="settings"
                 onchange={on_server_change}
                 value={state.server.clone()}
             />

@@ -61,7 +61,7 @@ fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
             {
                 Err(message) => props_cloned
                     .status
-                    .emit(Message::Error(message.to_string())),
+                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
                 Ok(_) => {
                     props_cloned.refresh.emit(());
                     data.ingredient_buffer = String::default();
@@ -126,7 +126,7 @@ fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
             {
                 Err(message) => props_cloned
                     .status
-                    .emit(Message::Error(message.to_string())),
+                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
                 Ok(_) => props_cloned.refresh.emit(()),
             }
         });
@@ -145,7 +145,7 @@ fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
             {
                 Err(message) => props_cloned
                     .status
-                    .emit(Message::Error(message.to_string())),
+                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
                 Ok(_) => props_cloned.refresh.emit(()),
             }
         });
@@ -190,7 +190,7 @@ fn dependency_edit_item(props: &DependencyEditItemProps) -> Html {
                 Ok(()) => props_cloned.refresh.emit(()),
                 Err(message) => props_cloned
                     .status
-                    .emit(Message::Error(message.to_string())),
+                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
             }
         });
     });
@@ -239,7 +239,7 @@ fn dependency_add_item(props: &TagAddItemProps) -> Html {
                 }
                 Err(message) => props_cloned
                     .status
-                    .emit(Message::Error(message.to_string())),
+                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
             }
         })
     });
@@ -274,7 +274,7 @@ fn dependency_add_item(props: &TagAddItemProps) -> Html {
                 }
                 Err(message) => props_cloned
                     .status
-                    .emit(Message::Error(message.to_string())),
+                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
             }
 
             state_cloned.set(data);
@@ -323,7 +323,7 @@ fn tag_edit_item(props: &TagEditItemProps) -> Html {
                 Ok(_) => props_cloned.refresh.emit(()),
                 Err(message) => props_cloned
                     .status
-                    .emit(Message::Error(message.to_string())),
+                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
             }
         });
     });
@@ -383,7 +383,7 @@ fn tag_add_item(props: &TagAddItemProps) -> Html {
                 }
                 Err(message) => props_cloned
                     .status
-                    .emit(Message::Error(message.to_string())),
+                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
             }
 
             state_cloned.set(data);
@@ -456,9 +456,10 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
     let props_cloned = props.clone();
     let refresh_recipe: Callback<()> = Callback::from(move |_| {
         let recipe_id = props_cloned.recipe_id.clone().unwrap_or_else(|| {
-            props_cloned.status.emit(Message::Info(String::from(
-                "Attempted to edit empty recipe",
-            )));
+            props_cloned.status.emit(Message::Info(
+                String::from("Attempted to edit empty recipe"),
+                chrono::Utc::now(),
+            ));
             String::default()
         });
 
@@ -476,7 +477,7 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                 }
                 Err(message) => props_cloned
                     .status
-                    .emit(Message::Error(message.to_string())),
+                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
             }
 
             state_cloned.set(data)
@@ -498,7 +499,7 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                     Ok(_) => refresh_recipe_cloned.emit(()),
                     Err(message) => props_cloned
                         .status
-                        .emit(Message::Error(message.to_string())),
+                        .emit(Message::Error(message.to_string(), chrono::Utc::now())),
                 }
             });
         }
@@ -519,7 +520,7 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                     Ok(_) => refresh_recipe_cloned.emit(()),
                     Err(message) => props_cloned
                         .status
-                        .emit(Message::Error(message.to_string())),
+                        .emit(Message::Error(message.to_string(), chrono::Utc::now())),
                 }
             });
         }
@@ -541,7 +542,7 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                     Ok(_) => refresh_recipe_cloned.emit(()),
                     Err(message) => props_cloned
                         .status
-                        .emit(Message::Error(message.to_string())),
+                        .emit(Message::Error(message.to_string(), chrono::Utc::now())),
                 }
             });
         }

@@ -68,7 +68,9 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
             if let Err(error) =
                 ladle::recipe_create(cloned_props.url.as_str(), data.recipe_name.as_str()).await
             {
-                cloned_props.status.emit(Message::Error(error.to_string()));
+                cloned_props
+                    .status
+                    .emit(Message::Error(error.to_string(), chrono::Utc::now()));
             };
         });
         data.clicked = false;
@@ -139,7 +141,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
                 Err(message) => {
                     props_cloned
                         .status
-                        .emit(Message::Error(message.to_string()));
+                        .emit(Message::Error(message.to_string(), chrono::Utc::now()));
                     data.recipes = vec![];
                 }
             }

@@ -41,6 +41,10 @@ main {
     right: 0;
 }
 
+.status.hidden {
+    display: none;
+}
+
 .status.error {
     @extend %status;
     background-color: red;
@@ -125,5 +129,19 @@ main {
             flex-flow: row nowrap;
             gap: 1rem;
         }
+    }
+}
+
+@media only screen and (max-width: 800px) {
+    main {
+        display: grid;
+        grid-template-areas: "settings" "list";
+        height: 100%;
+        grid-template-columns: 1fr;
+        grid-template-rows: min-content 1fr;
+    }
+
+    .recipe-display {
+        display: none;
     }
 }

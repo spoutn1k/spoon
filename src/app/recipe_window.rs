@@ -123,7 +123,7 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
                         Ok(recipe) => recipes.push(recipe),
                         Err(message) => props_cloned
                             .status
-                            .emit(Message::Error(message.to_string())),
+                            .emit(Message::Error(message.to_string(), chrono::Utc::now())),
                     }
 
                     loop {

@@ -74,7 +74,7 @@ pub fn app() -> Html {
                 let mut data = state_cloned.deref().clone();
 
                 if let Err(message) = ladle::recipe_delete(data.server.as_str(), &id).await {
-                    display_status.emit(Message::Error(message.to_string()))
+                    display_status.emit(Message::Error(message.to_string(), chrono::Utc::now()))
                 }
 
                 data.selected_recipe_id = None;
@@ -108,11 +108,12 @@ pub fn app() -> Html {
     html! {
         <main>
             <StatusBar current={state.last_error.clone()} />
-            <input type="text"
-                class="settings"
-                onchange={on_server_change}
-                value={state.server.clone()}
-            />
+            <div class="settings">
+                <input type="text"
+                    onchange={on_server_change}
+                    value={state.server.clone()}
+                />
+            </div>
             <RecipeList
                 url={state.server.clone()}
                 update={state.update}

@@ -1,7 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Chivo+Mono&family=Lato&family=Lora&display=swap');
+
 html,
 body {
+    font-family: 'Lato', serif;
     height: 100%;
     margin: 0;
+}
+
+h1,
+h2,
+h3 {
+    font-family: 'Lora', serif;
 }
 
 main {
@@ -62,7 +71,29 @@ main {
     position: relative;
     margin: 2rem;
 
+    .recipe-header {
+        h1 {
+            margin: 0;
+        }
+
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+        gap: 1rem;
+
+        .recipe-author {
+            font-style: italic;
+        }
+
+        .recipe-author::before {
+            content: "par ";
+            font-style: italic;
+        }
+    }
+
     .recipe-tags {
+        font-family: 'Chivo Mono', monospace;
+
         margin: 0;
         padding: 0;
         list-style: none;

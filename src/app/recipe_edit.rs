@@ -214,7 +214,7 @@ struct DependencyAddItemProps {
 #[derive(PartialEq, Clone)]
 struct DependencyAddItemState {
     dependency_id_buffer: Option<String>,
-    choices: Vec<ladle::models::Recipe>,
+    choices: Vec<ladle::models::RecipeIndex>,
 }
 
 #[function_component(DependencyAddItem)]
@@ -232,7 +232,8 @@ fn dependency_add_item(props: &TagAddItemProps) -> Html {
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = state_cloned.deref().clone();
             match ladle::recipe_index(props_cloned.url.as_str(), "").await {
-                Ok(recipes) => {
+                Ok(mut recipes) => {
+                    recipes.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
                     data.choices = recipes;
                     state_cloned.set(data);
                 }

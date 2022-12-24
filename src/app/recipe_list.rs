@@ -103,7 +103,7 @@ pub struct RecipeListProps {
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeListState {
     pattern: String,
-    recipes: Vec<ladle::models::Recipe>,
+    recipes: Vec<ladle::models::RecipeIndex>,
 }
 
 #[function_component(RecipeList)]
@@ -129,8 +129,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
         let cloned_state = cloned_state.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = cloned_state.deref().clone();
-            let fetched_recipes =
-                ladle::recipe_index(props_cloned.url.as_str(), data.pattern.as_str()).await;
+            let fetched_recipes = ladle::recipe_index(props_cloned.url.as_str(), "").await;
 
             match fetched_recipes {
                 Ok(mut index) => {

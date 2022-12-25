@@ -119,18 +119,23 @@ pub fn app() -> Html {
         <main>
             <StatusBar current={state.last_error.clone()} />
             <div class={format!("settings {}", if state.settings_open {"open"} else {"close"})}>
+                <label for="server">{"Knife server url:"}</label>
                 <input type="text"
+                    name="server"
                     onchange={on_server_change}
                     value={state.server.clone()}
                 />
-                <button onclick={move |_| open_settings.emit(false)}>
+                <button
+                    class="settings-close"
+                    onclick={move |_| open_settings.emit(false)}
+                >
                     {"Close"}
                 </button>
             </div>
             <div class="header">
                 <div class="left">
                     <button onclick={move |_| set_settings_mode.clone().emit(true)}>
-                        {"Show"}
+                        {"Settings"}
                     </button>
                 </div>
                 <div class="logo">

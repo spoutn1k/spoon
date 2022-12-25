@@ -13,6 +13,21 @@ h3 {
     font-family: 'Lora', serif;
 }
 
+button {
+    border: unset;
+    color: #333333;
+    background-color: #00000000;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+input {
+    border: unset;
+    border-bottom: solid 1px #ddd;
+    background: #00000000;
+    font-size: 1rem;
+}
+
 main {
     display: grid;
     grid-template-areas: "header header" "list recipe";
@@ -43,6 +58,15 @@ main {
     background-color: #ccc;
     min-width: 20%;
     padding: 2rem;
+    z-index: 20;
+    display: flex;
+    flex-flow: column nowrap;
+}
+
+.settings-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
 }
 
 .settings.close {
@@ -51,6 +75,17 @@ main {
 
 .settings.open {
     left: 0;
+}
+
+.settings.open::before {
+    content: "";
+    position: absolute;
+    background: #333;
+    left: 100%;
+    right: -400%;
+    top: 0;
+    bottom: 0;
+    opacity: 0.5;
 }
 
 .recipe-list {
@@ -68,6 +103,7 @@ main {
     left: 0;
     right: 0;
     max-height: 10%;
+    z-index: 1000;
 }
 
 .status.hidden {
@@ -103,6 +139,17 @@ main {
             border-bottom: solid 1px #ddd;
         }
     }
+}
+
+.recipe-display.empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #ddd;
+    font-size: 4rem;
+    margin: 4rem;
+    border: dashed 1rem #ddd;
+    border-radius: 4rem;
 }
 
 .recipe-display {

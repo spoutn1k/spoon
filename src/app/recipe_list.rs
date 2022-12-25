@@ -52,7 +52,7 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
 
     let cloned_state = state.clone();
     let name_changed = Callback::from(move |e: Event| {
-        let target: EventTarget = e.target().expect("Error accessing pattern input");
+        let target: EventTarget = e.target().expect("Error accessing name input");
         let name = target.unchecked_into::<HtmlInputElement>().value();
         let mut data = cloned_state.deref().clone();
         data.recipe_name = name;
@@ -104,24 +104,12 @@ pub struct RecipeListProps {
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeListState {
-    pattern: String,
     recipes: Vec<ladle::models::RecipeIndex>,
 }
 
 #[function_component(RecipeList)]
 pub fn recipe_list(props: &RecipeListProps) -> Html {
-    let state = use_state(|| RecipeListState {
-        pattern: String::default(),
-        recipes: vec![],
-    });
-
-    let cloned_state = state.clone();
-    let on_pattern_change = Callback::from(move |e: InputEvent| {
-        let target: EventTarget = e.target().expect("Error accessing pattern input");
-        let mut data = cloned_state.deref().clone();
-        data.pattern = target.unchecked_into::<HtmlInputElement>().value();
-        cloned_state.set(data);
-    });
+    let state = use_state(|| RecipeListState { recipes: vec![] });
 
     let props_cloned = props.clone();
     let cloned_state = state.clone();
@@ -156,10 +144,6 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
     let items = state
         .recipes
         .iter()
-        .filter(|recipe| {
-            unidecode::unidecode(&recipe.name.to_lowercase())
-                .contains(&state.pattern.to_lowercase())
-        })
         .map(|recipe| {
             html! {
                 <RecipeElement
@@ -173,10 +157,6 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
 
     html! {
         <div class="recipe-list">
-            <input type="text"
-                oninput={on_pattern_change}
-                value={state.pattern.clone()}
-            />
             <ul>
                 {items}
                 <RecipeCreateButton

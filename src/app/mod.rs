@@ -20,6 +20,7 @@ struct AppState {
     update: u32,
     selected_recipe_id: Option<String>,
     last_error: Message,
+    settings_open: bool,
     edition: bool,
 }
 
@@ -30,6 +31,7 @@ pub fn app() -> Html {
         update: 0,
         selected_recipe_id: None,
         last_error: Message::None,
+        settings_open: false,
         edition: false,
     });
 
@@ -51,6 +53,14 @@ pub fn app() -> Html {
     });
 
     let state_cloned = state.clone();
+    let recipe_deselect = Callback::from(move |_| {
+        let mut data = state_cloned.deref().clone();
+        data.selected_recipe_id = None;
+        data.edition = false;
+        state_cloned.set(data);
+    });
+
+    let state_cloned = state.clone();
     let display_status = Callback::from(move |status: Message| {
         let mut data = state_cloned.deref().clone();
         data.last_error = status;
@@ -65,24 +75,21 @@ pub fn app() -> Html {
     });
 
     let state_cloned = state.clone();
-    let display_status_cloned = display_status.clone();
+    let set_settings_mode = Callback::from(move |mode: bool| {
+        let mut data = state_cloned.deref().clone();
+        data.settings_open = mode;
+        state_cloned.set(data);
+    });
+
+    let state_cloned = state.clone();
     let on_delete: Callback<()> = Callback::from(move |_| {
-        let state_cloned = state_cloned.clone();
-        let display_status = display_status_cloned.clone();
-        if let Some(id) = state_cloned.selected_recipe_id.clone() {
-            wasm_bindgen_futures::spawn_local(async move {
-                let mut data = state_cloned.deref().clone();
+        let mut data = state_cloned.deref().clone();
 
-                if let Err(message) = ladle::recipe_delete(data.server.as_str(), &id).await {
-                    display_status.emit(Message::Error(message.to_string(), chrono::Utc::now()))
-                }
+        data.selected_recipe_id = None;
+        data.edition = false;
+        data.update = data.update + 1;
 
-                data.selected_recipe_id = None;
-                data.edition = false;
-                data.update = data.update + 1;
-                state_cloned.set(data)
-            });
-        }
+        state_cloned.set(data)
     });
 
     let window = match state.edition {
@@ -101,18 +108,36 @@ pub fn app() -> Html {
                 recipe_id={state.selected_recipe_id.clone()}
                 status={display_status.clone()}
                 set_edition={set_edit}
+                deselect={recipe_deselect}
             />
         },
     };
 
+    let open_settings = set_settings_mode.clone();
+
     html! {
         <main>
             <StatusBar current={state.last_error.clone()} />
-            <div class="settings">
+            <div class={format!("settings {}", if state.settings_open {"open"} else {"close"})}>
                 <input type="text"
                     onchange={on_server_change}
                     value={state.server.clone()}
                 />
+                <button onclick={move |_| open_settings.emit(false)}>
+                    {"Close"}
+                </button>
+            </div>
+            <div class="header">
+                <div class="left">
+                    <button onclick={move |_| set_settings_mode.clone().emit(true)}>
+                        {"Show"}
+                    </button>
+                </div>
+                <div class="logo">
+                    {format!("spoon v{}", env!("CARGO_PKG_VERSION"))}
+                </div>
+                <div class="right">
+                </div>
             </div>
             <RecipeList
                 url={state.server.clone()}

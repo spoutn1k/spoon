@@ -548,15 +548,43 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
         }
     });
 
+    let props_cloned = props.clone();
+    let state_cloned = state.clone();
+    let on_delete: Callback<()> = Callback::from(move |_| {
+        let props_cloned = props_cloned.clone();
+        let state_cloned = state_cloned.clone();
+
+        if let Some(recipe) = state_cloned.recipe.clone() {
+            wasm_bindgen_futures::spawn_local(async move {
+                /*
+                if let Err(message) =
+                    ladle::recipe_delete(props_cloned.url.as_str(), &recipe.id).await
+                {
+                    props_cloned
+                        .status
+                        .emit(Message::Error(message.to_string(), chrono::Utc::now()))
+                }
+
+                props_cloned.on_delete.emit(());
+                */
+
+                props_cloned.status.emit(Message::Info(
+                    String::from("Recipe deletion disabled"),
+                    chrono::Utc::now(),
+                ));
+            });
+        }
+    });
+
     let refresh_recipe_cloned = refresh_recipe.clone();
     use_effect_with_deps(move |_| refresh_recipe_cloned.emit(()), props.clone());
+
+    let props_cloned = props.clone();
+    let on_click_edit = Callback::from(move |_| props_cloned.set_edition.emit(false));
 
     let state_cloned = state.clone();
     let props_cloned = props.clone();
     if let Some(recipe) = &(*state_cloned).recipe {
-        let on_click_edit = Callback::from(move |_| props_cloned.set_edition.emit(false));
-        let on_click_delete = Callback::from(move |_| props_cloned.on_delete.emit(()));
-
         let dependencies = recipe
             .dependencies
             .iter()
@@ -658,7 +686,7 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                 </ul>
                 <div class="options">
                     <button onclick={on_click_edit}>{"Done"}</button>
-                    <button onclick={on_click_delete}>{"Delete"}</button>
+                    <button onclick={move |_| {on_delete.emit(())}}>{"Delete"}</button>
                 </div>
             </div>
         }

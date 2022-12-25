@@ -4,14 +4,6 @@ use pulldown_cmark::{html::push_html, Options, Parser};
 use yew::prelude::*;
 use yew::{html, AttrValue, Html};
 
-#[derive(Properties, PartialEq, Clone)]
-pub struct RecipeWindowProps {
-    pub url: String,
-    pub recipe_id: Option<String>,
-    pub status: Callback<Message>,
-    pub set_edition: Callback<bool>,
-}
-
 fn parse_text(value: &str) -> String {
     let options = Options::empty();
 
@@ -53,7 +45,7 @@ fn render_directions(data: &ladle::models::Recipe) -> Html {
     }
 }
 
-fn render_recipe(data: &Vec<ladle::models::Recipe>, edit: &Callback<bool>) -> Html {
+fn render_recipe(data: &Vec<ladle::models::Recipe>) -> Html {
     let main_recipe = data.first().unwrap();
     let requirements = data.iter().rev().map(render_requirements).collect::<Html>();
     let directions = data.iter().rev().map(render_directions).collect::<Html>();
@@ -70,11 +62,8 @@ fn render_recipe(data: &Vec<ladle::models::Recipe>, edit: &Callback<bool>) -> Ht
         })
         .collect::<Html>();
 
-    let edit = edit.clone();
-    let on_click_edit = Callback::from(move |_| edit.emit(true));
-
     html! {
-        <div class="recipe-display">
+            <>
             <div class="recipe-header">
                 <h1 class="recipe-name">{main_recipe.name.as_str()}</h1>
                 <div class="recipe-author">{main_recipe.author.as_str()}</div>
@@ -84,13 +73,7 @@ fn render_recipe(data: &Vec<ladle::models::Recipe>, edit: &Callback<bool>) -> Ht
             <ul class="recipe-ingredients">{requirements}</ul>
             <h2 class="recipe-directions-label">{"Préparation"}</h2>
             <div class="recipe-directions">{directions}</div>
-            <div class="options">
-                <button
-                    class="recipe-edit"
-                    onclick={on_click_edit}
-                >{"Edit"}</button>
-            </div>
-        </div>
+            </>
     }
 }
 
@@ -104,17 +87,26 @@ fn calc_missing(list: &Vec<ladle::models::Recipe>) -> Vec<&str> {
         .collect()
 }
 
+#[derive(Properties, PartialEq, Clone)]
+pub struct RecipeWindowProps {
+    pub url: String,
+    pub recipe_id: Option<String>,
+    pub status: Callback<Message>,
+    pub set_edition: Callback<bool>,
+    pub deselect: Callback<()>,
+}
+
 #[function_component(RecipeWindow)]
 pub fn recipes_window(props: &RecipeWindowProps) -> Html {
-    let recipe = use_state(|| vec![]);
+    let recipe_set = use_state(|| vec![]);
 
-    let recipe_cloned = recipe.clone();
+    let recipe_set_cloned = recipe_set.clone();
     let props_copy = props.clone();
     use_effect_with_deps(
         move |_| {
-            let recipe_cloned = recipe_cloned.clone();
+            let recipe_set_cloned = recipe_set_cloned.clone();
             if let Some(id) = props_copy.recipe_id.clone() {
-                let recipe_init = recipe_cloned.clone();
+                let recipe_init = recipe_set_cloned.clone();
                 let props_cloned = props_copy.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                     let mut recipes: Vec<ladle::models::Recipe> = vec![];
@@ -148,17 +140,44 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
 
                     recipe_init.set(recipes)
                 });
+            } else {
+                recipe_set_cloned.set(vec![]);
             }
         },
         props.clone(),
     );
 
-    match (*recipe).len() {
-        0 => html! {
-            <div class="recipe-display">
+    let empty = (*recipe_set).len() == 0;
+
+    let class;
+    let recipe_html;
+    let options;
+
+    let props_cloned = props.clone();
+    if empty {
+        class = "recipe-display empty";
+        recipe_html = html! {
                 <span>{"No data"}</span>
-            </div>
-        },
-        _ => render_recipe(&recipe, &props.set_edition),
-    }
+        };
+        options = html! {};
+    } else {
+        class = "recipe-display filled";
+        recipe_html = render_recipe(&recipe_set);
+        options = html! {<div class="options">
+            <button
+                class="recipe-edit"
+                onclick={move |_| props_cloned.set_edition.emit(true)}
+            >{"Edit"}</button>
+            <button
+                class="recipe-deselect"
+                onclick={move |_| props_cloned.deselect.emit(())}
+            >{"Close"}</button>
+        </div>};
+    };
+
+    html! {
+    <div {class}>
+        {recipe_html}
+        {options}
+    </div>}
 }

@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 mod recipe_edit;
 mod recipe_list;
 mod recipe_window;
@@ -10,7 +8,7 @@ use recipe_edit::RecipeEditWindow;
 use recipe_list::RecipeList;
 use recipe_window::RecipeWindow;
 use status_bar::{Message, StatusBar};
-
+use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
 use yew::prelude::*;
@@ -25,6 +23,23 @@ struct AppState {
     edition: bool,
 }
 
+#[derive(Properties, PartialEq, Clone, Debug)]
+struct AppContext {
+    server: String,
+    recipe_id: Option<String>,
+    status: Callback<Message>,
+}
+
+impl Default for AppContext {
+    fn default() -> Self {
+        AppContext {
+            server: String::default(),
+            recipe_id: None,
+            status: Callback::from(|_| ()),
+        }
+    }
+}
+
 #[function_component(App)]
 pub fn app() -> Html {
     let state = use_state_eq(|| AppState {
@@ -37,6 +52,19 @@ pub fn app() -> Html {
     });
 
     let state_cloned = state.clone();
+    let display_status = Callback::from(move |status: Message| {
+        let mut data = state_cloned.deref().clone();
+        data.last_error = status;
+        state_cloned.set(data);
+    });
+
+    let context = use_state(|| AppContext {
+        server: state.server.clone(),
+        recipe_id: state.selected_recipe_id.clone(),
+        status: display_status,
+    });
+
+    let state_cloned = state.clone();
     let on_server_change = Callback::from(move |e: Event| {
         let mut data = state_cloned.deref().clone();
         let target: EventTarget = e.target().expect("");
@@ -46,11 +74,15 @@ pub fn app() -> Html {
     });
 
     let state_cloned = state.clone();
+    let context_cloned = context.clone();
     let on_recipe_select = Callback::from(move |recipe_id: String| {
         let mut data = state_cloned.deref().clone();
-        data.selected_recipe_id = Some(recipe_id);
         data.edition = false;
         state_cloned.set(data);
+
+        let mut data = context_cloned.deref().clone();
+        data.recipe_id = Some(recipe_id);
+        context_cloned.set(data);
     });
 
     let state_cloned = state.clone();
@@ -58,13 +90,6 @@ pub fn app() -> Html {
         let mut data = state_cloned.deref().clone();
         data.selected_recipe_id = None;
         data.edition = false;
-        state_cloned.set(data);
-    });
-
-    let state_cloned = state.clone();
-    let display_status = Callback::from(move |status: Message| {
-        let mut data = state_cloned.deref().clone();
-        data.last_error = status;
         state_cloned.set(data);
     });
 
@@ -96,18 +121,12 @@ pub fn app() -> Html {
     let window = match state.edition {
         true => html! {
             <RecipeEditWindow
-                url={state.server.clone()}
-                recipe_id={state.selected_recipe_id.clone()}
-                status={display_status.clone()}
                 set_edition={set_edit}
                 on_delete={on_delete}
             />
         },
         false => html! {
             <RecipeWindow
-                url={state.server.clone()}
-                recipe_id={state.selected_recipe_id.clone()}
-                status={display_status.clone()}
                 set_edition={set_edit}
                 deselect={recipe_deselect}
             />
@@ -145,13 +164,13 @@ pub fn app() -> Html {
                 <div class="right">
                 </div>
             </div>
+            <ContextProvider<AppContext> context={(*context).clone()}>
             <RecipeList
-                url={state.server.clone()}
                 update={state.update}
                 on_click={on_recipe_select}
-                status={display_status.clone()}
             />
             {window}
+            </ContextProvider<AppContext>>
         </main>
     }
 }

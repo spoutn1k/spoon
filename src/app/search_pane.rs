@@ -1,12 +1,10 @@
 use crate::app::status_bar::Message;
+use crate::app::AppContext;
 use std::ops::Deref;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq, Clone)]
-pub struct SearchPaneProps {
-    pub url: String,
-    pub status: Callback<Message>,
-}
+pub struct SearchPaneProps {}
 
 #[derive(PartialEq, Clone)]
 pub struct SearchPaneState {
@@ -14,17 +12,18 @@ pub struct SearchPaneState {
 }
 
 #[function_component(SearchPane)]
-pub fn search_pane(props: &SearchPaneProps) -> Html {
+pub fn search_pane() -> Html {
     let state = use_state(|| SearchPaneState { labels: vec![] });
-    let props_cloned = props.clone();
-    let cloned_state = state.clone();
+    let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
+    let cloned_state = state.clone();
+    let context_cloned = context.clone();
     let refresh_labels = Callback::from(move |_| {
-        let props_cloned = props_cloned.clone();
         let cloned_state = cloned_state.clone();
+        let context_cloned = context_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = cloned_state.deref().clone();
-            let fetched_labels = ladle::label_index(props_cloned.url.as_str(), "").await;
+            let fetched_labels = ladle::label_index(context_cloned.server.as_str(), "").await;
 
             match fetched_labels {
                 Ok(mut index) => {
@@ -32,7 +31,7 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
                     data.labels = index
                 }
                 Err(message) => {
-                    props_cloned
+                    context_cloned
                         .status
                         .emit(Message::Error(message.to_string(), chrono::Utc::now()));
                     data.labels = vec![];
@@ -43,7 +42,7 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
         });
     });
 
-    use_effect_with_deps(move |_| refresh_labels.emit(()), props.clone());
+    use_effect_with_deps(move |_| refresh_labels.emit(()), context.server.clone());
 
     let labels = state
         .labels

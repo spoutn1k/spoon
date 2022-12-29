@@ -1,4 +1,5 @@
 use crate::app::status_bar::Message;
+use crate::app::AppContext;
 use futures::future::join_all;
 use pulldown_cmark::{html::push_html, Options, Parser};
 use yew::prelude::*;
@@ -89,9 +90,6 @@ fn calc_missing(list: &Vec<ladle::models::Recipe>) -> Vec<&str> {
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeWindowProps {
-    pub url: String,
-    pub recipe_id: Option<String>,
-    pub status: Callback<Message>,
     pub set_edition: Callback<bool>,
     pub deselect: Callback<()>,
 }
@@ -100,20 +98,24 @@ pub struct RecipeWindowProps {
 pub fn recipes_window(props: &RecipeWindowProps) -> Html {
     let recipe_set = use_state(|| vec![]);
 
+    let context = use_context::<AppContext>().unwrap_or(AppContext {
+        server: "".to_string(),
+        recipe_id: None,
+        status: Callback::from(|_| {}),
+    });
+
     let recipe_set_cloned = recipe_set.clone();
-    let props_copy = props.clone();
     use_effect_with_deps(
         move |_| {
             let recipe_set_cloned = recipe_set_cloned.clone();
-            if let Some(id) = props_copy.recipe_id.clone() {
+            if let Some(id) = context.recipe_id.clone() {
                 let recipe_init = recipe_set_cloned.clone();
-                let props_cloned = props_copy.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                     let mut recipes: Vec<ladle::models::Recipe> = vec![];
 
-                    match ladle::recipe_get(props_cloned.url.as_str(), id.as_str()).await {
+                    match ladle::recipe_get(context.server.as_str(), id.as_str()).await {
                         Ok(recipe) => recipes.push(recipe),
-                        Err(message) => props_cloned
+                        Err(message) => context
                             .status
                             .emit(Message::Error(message.to_string(), chrono::Utc::now())),
                     }
@@ -127,7 +129,7 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
 
                         let fetches = missing
                             .iter()
-                            .map(|id| ladle::recipe_get(props_cloned.url.as_str(), id));
+                            .map(|id| ladle::recipe_get(context.server.as_str(), id));
 
                         join_all(fetches)
                             .await

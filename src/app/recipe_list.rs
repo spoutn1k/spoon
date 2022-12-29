@@ -1,5 +1,6 @@
 use crate::app::search_pane::SearchPane;
 use crate::app::status_bar::Message;
+use crate::app::AppContext;
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
@@ -32,9 +33,7 @@ struct RecipeCreateState {
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeCreateProps {
-    pub url: String,
     pub refresh_list: Callback<()>,
-    pub status: Callback<Message>,
 }
 
 #[function_component(RecipeCreateButton)]
@@ -43,6 +42,8 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
         clicked: false,
         recipe_name: String::from(""),
     });
+
+    let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
     let cloned_state = state.clone();
     let label_clicked = Callback::from(move |_| {
@@ -61,15 +62,17 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
     });
 
     let cloned_state = state.clone();
-    let cloned_props = props.clone();
+    let context_cloned = context.clone();
+    let props_cloned = props.clone();
     let name_submit = Callback::from(move |_| {
         let mut data = cloned_state.deref().clone();
-        let cloned_props = cloned_props.clone();
+        let context_cloned = context_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             if let Err(error) =
-                ladle::recipe_create(cloned_props.url.as_str(), data.recipe_name.as_str()).await
+                ladle::recipe_create(context_cloned.server.as_str(), data.recipe_name.as_str())
+                    .await
             {
-                cloned_props
+                context_cloned
                     .status
                     .emit(Message::Error(error.to_string(), chrono::Utc::now()));
             };
@@ -77,7 +80,7 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
         data.clicked = false;
         data.recipe_name = String::default();
         cloned_state.set(data);
-        cloned_props.refresh_list.emit(());
+        props_cloned.refresh_list.emit(());
     });
 
     match (*state).clicked {
@@ -97,10 +100,8 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeListProps {
-    pub url: String,
     pub update: u32,
     pub on_click: Callback<String>,
-    pub status: Callback<Message>,
 }
 
 #[derive(Properties, PartialEq, Clone)]
@@ -111,16 +112,16 @@ pub struct RecipeListState {
 #[function_component(RecipeList)]
 pub fn recipe_list(props: &RecipeListProps) -> Html {
     let state = use_state(|| RecipeListState { recipes: vec![] });
+    let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
-    let props_cloned = props.clone();
     let cloned_state = state.clone();
-
+    let context_cloned = context.clone();
     let refresh_list = Callback::from(move |_| {
-        let props_cloned = props_cloned.clone();
         let cloned_state = cloned_state.clone();
+        let context_cloned = context_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = cloned_state.deref().clone();
-            let fetched_recipes = ladle::recipe_index(props_cloned.url.as_str(), "").await;
+            let fetched_recipes = ladle::recipe_index(context_cloned.server.as_str(), "").await;
 
             match fetched_recipes {
                 Ok(mut index) => {
@@ -128,7 +129,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
                     data.recipes = index
                 }
                 Err(message) => {
-                    props_cloned
+                    context_cloned
                         .status
                         .emit(Message::Error(message.to_string(), chrono::Utc::now()));
                     data.recipes = vec![];
@@ -158,16 +159,11 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
 
     html! {
         <div class="recipe-list">
-            <SearchPane
-                url={props.url.clone()}
-                status={props.status.clone()}
-            />
+            <SearchPane />
             <ul class="recipe-index">
                 {items}
                 <RecipeCreateButton
-                    url={props.url.clone()}
                     refresh_list={refresh_list}
-                    status={props.status.clone()}
                 />
             </ul>
         </div>

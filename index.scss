@@ -88,10 +88,6 @@ main {
     opacity: 0.5;
 }
 
-.recipe-list {
-    grid-area: list;
-    overflow-y: scroll;
-}
 
 .recipe-display {
     grid-area: recipe;
@@ -121,10 +117,40 @@ main {
 }
 
 .recipe-list {
+    grid-area: list;
+    height: 100%;
+    display: flex;
+    flex-flow: column nowrap;
+    overflow-y: scroll;
+
     ul {
         margin: 0;
         padding: 0;
         list-style: none;
+    }
+
+    .search-pane {
+        padding: 1rem;
+
+        .search-bar {
+            width: 100%;
+            background-color: #ddd;
+            height: 2rem;
+            border-radius: 1rem;
+        }
+
+        .available-labels {
+            display: flex;
+            flex-flow: row wrap;
+            gap: .5rem;
+        }
+    }
+
+
+    .recipe-index {
+        height: 100%;
+        overflow-y: scroll;
+
         display: flex;
         flex-flow: column nowrap;
         gap: .5rem;

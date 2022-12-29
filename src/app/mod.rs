@@ -3,6 +3,7 @@ use std::ops::Deref;
 mod recipe_edit;
 mod recipe_list;
 mod recipe_window;
+mod search_pane;
 mod status_bar;
 
 use recipe_edit::RecipeEditWindow;

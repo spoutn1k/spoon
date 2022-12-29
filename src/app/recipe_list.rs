@@ -1,3 +1,4 @@
+use crate::app::search_pane::SearchPane;
 use crate::app::status_bar::Message;
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
@@ -157,7 +158,11 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
 
     html! {
         <div class="recipe-list">
-            <ul>
+            <SearchPane
+                url={props.url.clone()}
+                status={props.status.clone()}
+            />
+            <ul class="recipe-index">
                 {items}
                 <RecipeCreateButton
                     url={props.url.clone()}

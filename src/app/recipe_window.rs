@@ -56,7 +56,7 @@ fn render_recipe(data: &Vec<ladle::models::Recipe>) -> Html {
         .iter()
         .map(|label| {
             html! {
-                <li key={label.id.clone()}>
+                <li class="label" key={label.id.clone()}>
                     {label.name.clone()}
                 </li>
             }

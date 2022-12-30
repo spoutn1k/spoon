@@ -169,7 +169,7 @@ fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
 
 #[derive(Properties, PartialEq, Clone)]
 struct DependencyEditItemProps {
-    dependency: ladle::models::Dependency,
+    dependency: ladle::models::RecipeIndex,
     refresh: Callback<()>,
 }
 
@@ -304,7 +304,7 @@ fn dependency_add_item(props: &TagAddItemProps) -> Html {
 
 #[derive(Properties, PartialEq, Clone)]
 struct TagEditItemProps {
-    label: ladle::models::Label,
+    label: ladle::models::LabelIndex,
     refresh: Callback<()>,
 }
 

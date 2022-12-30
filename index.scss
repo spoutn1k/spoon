@@ -51,6 +51,15 @@ main {
     font-weight: bold;
 }
 
+%label {
+    font-family: 'Chivo Mono', monospace;
+
+    color: #333;
+    background-color: #ddd;
+    padding: 0 .4rem 0 .4rem;
+    border-radius: .3rem;
+}
+
 .settings {
     position: fixed;
     top: 0;
@@ -141,9 +150,13 @@ main {
 
             .search-bar {
                 width: 100%;
-                background-color: #ddd;
+                background-color: #fff;
                 height: 2rem;
                 border-radius: 1rem;
+                display: flex;
+                flex-flow: row nowrap;
+                align-items: center;
+                overflow: hidden;
             }
         }
 
@@ -159,15 +172,17 @@ main {
             height: 0;
         }
 
-        .label.filter.add {
-            background: #ddd;
-            padding: 0 .4rem 0 .4rem;
-            border-radius: .3rem;
+        .label.filter {
+            @extend %label;
         }
 
         .label.filter.add::after {
-            /* content: "+"; */
             content: " +";
+            font-weight: bold;
+        }
+
+        .label.filter.remove::after {
+            content: " x";
             font-weight: bold;
         }
     }
@@ -230,8 +245,6 @@ main {
     }
 
     .recipe-tags {
-        font-family: 'Chivo Mono', monospace;
-
         margin: 0;
         padding: 0;
         list-style: none;
@@ -239,11 +252,8 @@ main {
         flex-flow: row nowrap;
         gap: .5rem;
 
-        * {
-            color: #333;
-            background-color: #ddd;
-            border-radius: 2rem;
-            padding: 0 .5rem 0 .5rem;
+        .label {
+            @extend %label;
         }
     }
 

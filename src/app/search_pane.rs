@@ -1,5 +1,6 @@
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
+use std::collections::HashSet;
 use std::ops::Deref;
 use yew::prelude::*;
 
@@ -8,7 +9,8 @@ pub struct SearchPaneProps {}
 
 #[derive(PartialEq, Clone, Default)]
 struct SearchPaneState {
-    labels: Vec<ladle::models::Label>,
+    labels: HashSet<ladle::models::LabelIndex>,
+    selected_labels: HashSet<ladle::models::LabelIndex>,
     label_tray_shown: bool,
 }
 
@@ -29,13 +31,13 @@ pub fn search_pane() -> Html {
             match fetched_labels {
                 Ok(mut index) => {
                     index.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
-                    data.labels = index
+                    data.labels = HashSet::from_iter(index.iter().cloned());
                 }
                 Err(message) => {
                     context_cloned
                         .status
                         .emit(Message::Error(message.to_string(), chrono::Utc::now()));
-                    data.labels = vec![];
+                    data.labels = HashSet::new();
                 }
             }
 
@@ -45,12 +47,6 @@ pub fn search_pane() -> Html {
 
     use_effect_with_deps(move |_| refresh_labels.emit(()), context.server.clone());
 
-    let labels = state
-        .labels
-        .iter()
-        .map(|l| html! {<li key={l.id.as_str()} class="label filter add">{l.name.clone()}</li>})
-        .collect::<Html>();
-
     let cloned_state = state.clone();
     let toggle_tray = Callback::from(move |_| {
         let mut data = cloned_state.deref().clone();
@@ -58,15 +54,58 @@ pub fn search_pane() -> Html {
         cloned_state.set(data);
     });
 
+    let filters_avail = state
+        .labels
+        .difference(&state.selected_labels)
+        .map(|l| {
+            let element_state = state.clone();
+            let label = l.clone();
+            html! {
+                <li
+                    key={l.id.as_str()}
+                    class="label filter add"
+                    onclick={Callback::from(move |_|{
+                        let mut data = element_state.deref().clone();
+                        data.selected_labels.insert(label.clone());
+                        element_state.set(data);})}
+                >{
+                    l.name.clone()
+                }</li>
+            }
+        })
+        .collect::<Html>();
+
+    let filters_selected = state
+        .selected_labels
+        .iter()
+        .map(|l| {
+            let element_state = state.clone();
+            let label = l.clone();
+            html! {
+                <li
+                    key={l.id.as_str()}
+                    class="label filter remove"
+                    onclick={Callback::from(move |_|{
+                        let mut data = element_state.deref().clone();
+                        data.selected_labels.remove(&label);
+                        element_state.set(data);})}
+                >{
+                    l.name.clone()
+                }</li>
+            }
+        })
+        .collect::<Html>();
+
     html! {
         <div class="search-pane">
             <div class="search-header">
-                <div class="search-bar">
-                </div>
+                <ul class="search-bar">
+                    {filters_selected}
+                </ul>
                 <button class="label-tray-toggle" onclick={toggle_tray}>{"labels"}</button>
             </div>
             <ul class={format!("available-labels {}", if state.label_tray_shown {"shown"} else {"hidden"})}>
-                {labels}
+                {filters_avail}
             </ul>
         </div>
     }

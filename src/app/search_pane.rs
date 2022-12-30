@@ -6,14 +6,15 @@ use yew::prelude::*;
 #[derive(Properties, PartialEq, Clone)]
 pub struct SearchPaneProps {}
 
-#[derive(PartialEq, Clone)]
-pub struct SearchPaneState {
-    pub labels: Vec<ladle::models::Label>,
+#[derive(PartialEq, Clone, Default)]
+struct SearchPaneState {
+    labels: Vec<ladle::models::Label>,
+    label_tray_shown: bool,
 }
 
 #[function_component(SearchPane)]
 pub fn search_pane() -> Html {
-    let state = use_state(|| SearchPaneState { labels: vec![] });
+    let state = use_state(|| SearchPaneState::default());
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
     let cloned_state = state.clone();
@@ -50,11 +51,21 @@ pub fn search_pane() -> Html {
         .map(|l| html! {<li key={l.id.as_str()} class="label filter add">{l.name.clone()}</li>})
         .collect::<Html>();
 
+    let cloned_state = state.clone();
+    let toggle_tray = Callback::from(move |_| {
+        let mut data = cloned_state.deref().clone();
+        data.label_tray_shown = !data.label_tray_shown;
+        cloned_state.set(data);
+    });
+
     html! {
         <div class="search-pane">
-            <div class="search-bar">
+            <div class="search-header">
+                <div class="search-bar">
+                </div>
+                <button class="label-tray-toggle" onclick={toggle_tray}>{"labels"}</button>
             </div>
-            <ul class="available-labels">
+            <ul class={format!("available-labels {}", if state.label_tray_shown {"shown"} else {"hidden"})}>
                 {labels}
             </ul>
         </div>

@@ -130,22 +130,47 @@ main {
     }
 
     .search-pane {
+        display: flex;
+        flex-flow: column nowrap;
+        gap: 1rem;
         padding: 1rem;
+        background-color: #933;
 
-        .search-bar {
-            width: 100%;
-            background-color: #ddd;
-            height: 2rem;
-            border-radius: 1rem;
+        .search-header {
+            display: flex;
+
+            .search-bar {
+                width: 100%;
+                background-color: #ddd;
+                height: 2rem;
+                border-radius: 1rem;
+            }
         }
 
         .available-labels {
             display: flex;
             flex-flow: row wrap;
             gap: .5rem;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .available-labels.hidden {
+            height: 0;
+        }
+
+        .label.filter.add {
+            background: #ddd;
+            padding: 0 .4rem 0 .4rem;
+            border-radius: .3rem;
+        }
+
+        .label.filter.add::after {
+            /* content: "+"; */
+            content: " +";
+            font-weight: bold;
         }
     }
-
 
     .recipe-index {
         height: 100%;

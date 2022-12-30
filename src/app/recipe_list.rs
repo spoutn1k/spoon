@@ -1,6 +1,8 @@
 use crate::app::search_pane::SearchPane;
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
+use futures::future::join_all;
+use std::collections::HashSet;
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
@@ -21,7 +23,11 @@ pub fn recipe_element(RecipeElementProps { id, name, on_click }: &RecipeElementP
         Callback::from(move |_| on_click.emit(id_cloned.clone()))
     };
     html! {
-        <li key={String::from(id)} onclick={on_recipe_select}>{name}</li>
+        <li
+        key={String::from(id)}
+        onclick={on_recipe_select}>{
+            name
+        }</li>
     }
 }
 
@@ -98,20 +104,89 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
     }
 }
 
+async fn fetch_recipes_label_union(
+    server: &str,
+    labels: HashSet<ladle::models::LabelIndex>,
+    status: Callback<Message>,
+) -> Vec<ladle::models::RecipeIndex> {
+    let fetches = labels.iter().map(|l| ladle::label_get(server, &l.id));
+
+    let recipes: HashSet<ladle::models::RecipeIndex> = join_all(fetches)
+        .await
+        .iter()
+        .filter_map(|r| match r {
+            Ok(label) => Some(label.tagged_recipes.iter()),
+            Err(message) => {
+                status.emit(Message::Error(message.to_string(), chrono::Utc::now()));
+                None
+            }
+        })
+        .flatten()
+        .cloned()
+        .collect();
+
+    Vec::from_iter(recipes)
+}
+
+async fn fetch_recipes_label_intersection(
+    server: &str,
+    labels: HashSet<ladle::models::LabelIndex>,
+    status: Callback<Message>,
+) -> Vec<ladle::models::RecipeIndex> {
+    let fetches = labels.iter().map(|l| ladle::label_get(server, &l.id));
+
+    let recipes: Option<HashSet<ladle::models::RecipeIndex>> = join_all(fetches)
+        .await
+        .iter()
+        .filter_map(|r| match r {
+            Ok(label) => Some(label.tagged_recipes.iter().cloned().collect()),
+            Err(message) => {
+                status.emit(Message::Error(message.to_string(), chrono::Utc::now()));
+                None
+            }
+        })
+        .reduce(|acc: HashSet<ladle::models::RecipeIndex>, e| {
+            acc.intersection(&e).cloned().collect()
+        });
+
+    match recipes {
+        Some(intersection) => intersection.iter().cloned().collect(),
+        _ => vec![],
+    }
+}
+
+async fn fetch_recipes_index(
+    server: &str,
+    _labels: HashSet<ladle::models::LabelIndex>,
+    status: Callback<Message>,
+) -> Vec<ladle::models::RecipeIndex> {
+    match ladle::recipe_index(server, "").await {
+        Ok(mut index) => {
+            index.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+            index
+        }
+        Err(message) => {
+            status.emit(Message::Error(message.to_string(), chrono::Utc::now()));
+            vec![]
+        }
+    }
+}
+
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeListProps {
     pub update: u32,
     pub on_click: Callback<String>,
 }
 
-#[derive(Properties, PartialEq, Clone)]
+#[derive(Properties, PartialEq, Clone, Default)]
 pub struct RecipeListState {
     recipes: Vec<ladle::models::RecipeIndex>,
+    selected_labels: HashSet<ladle::models::LabelIndex>,
 }
 
 #[function_component(RecipeList)]
 pub fn recipe_list(props: &RecipeListProps) -> Html {
-    let state = use_state(|| RecipeListState { recipes: vec![] });
+    let state = use_state(|| RecipeListState::default());
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
     let cloned_state = state.clone();
@@ -121,27 +196,44 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
         let context_cloned = context_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = cloned_state.deref().clone();
-            let fetched_recipes = ladle::recipe_index(context_cloned.server.as_str(), "").await;
-
-            match fetched_recipes {
-                Ok(mut index) => {
-                    index.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
-                    data.recipes = index
+            let mut fetched_recipes = match cloned_state.selected_labels.len() {
+                0 => {
+                    fetch_recipes_index(
+                        context_cloned.server.as_str(),
+                        cloned_state.selected_labels.clone(),
+                        context_cloned.status,
+                    )
+                    .await
                 }
-                Err(message) => {
-                    context_cloned
-                        .status
-                        .emit(Message::Error(message.to_string(), chrono::Utc::now()));
-                    data.recipes = vec![];
+                _ => {
+                    fetch_recipes_label_union(
+                        context_cloned.server.as_str(),
+                        cloned_state.selected_labels.clone(),
+                        context_cloned.status,
+                    )
+                    .await
                 }
-            }
+            };
 
+            fetched_recipes.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+            data.recipes = fetched_recipes;
             cloned_state.set(data);
         });
     });
 
+    let cloned_state = state.clone();
+    let update_selected_labels: Callback<HashSet<ladle::models::LabelIndex>> =
+        Callback::from(move |selected| {
+            let mut data = cloned_state.deref().clone();
+            data.selected_labels = selected;
+            cloned_state.set(data);
+        });
+
     let refresh_list_cloned = refresh_list.clone();
-    use_effect_with_deps(move |_| refresh_list_cloned.emit(()), props.update);
+    use_effect_with_deps(
+        move |_| refresh_list_cloned.emit(()),
+        state.selected_labels.clone(),
+    );
 
     let items = state
         .recipes
@@ -159,7 +251,10 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
 
     html! {
         <div class="recipe-list">
-            <SearchPane />
+            <SearchPane
+                {update_selected_labels}
+                selected_labels={state.selected_labels.clone()}
+            />
             <ul class="recipe-index">
                 {items}
                 <RecipeCreateButton

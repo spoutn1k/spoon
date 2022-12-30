@@ -95,25 +95,22 @@ pub struct RecipeWindowProps {
 }
 
 #[function_component(RecipeWindow)]
-pub fn recipes_window(props: &RecipeWindowProps) -> Html {
+pub fn recipe_window(props: &RecipeWindowProps) -> Html {
     let recipe_set = use_state(|| vec![]);
 
-    let context = use_context::<AppContext>().unwrap_or(AppContext {
-        server: "".to_string(),
-        recipe_id: None,
-        status: Callback::from(|_| {}),
-    });
+    let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
     let recipe_set_cloned = recipe_set.clone();
+    let context_cloned = context.clone();
     use_effect_with_deps(
         move |_| {
             let recipe_set_cloned = recipe_set_cloned.clone();
-            if let Some(id) = context.recipe_id.clone() {
+            if let Some(id) = context_cloned.recipe_id.clone() {
                 let recipe_init = recipe_set_cloned.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                     let mut recipes: Vec<ladle::models::Recipe> = vec![];
 
-                    match ladle::recipe_get(context.server.as_str(), id.as_str()).await {
+                    match ladle::recipe_get(context_cloned.server.as_str(), id.as_str()).await {
                         Ok(recipe) => recipes.push(recipe),
                         Err(message) => context
                             .status
@@ -129,7 +126,7 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
 
                         let fetches = missing
                             .iter()
-                            .map(|id| ladle::recipe_get(context.server.as_str(), id));
+                            .map(|id| ladle::recipe_get(context_cloned.server.as_str(), id));
 
                         join_all(fetches)
                             .await
@@ -146,7 +143,7 @@ pub fn recipes_window(props: &RecipeWindowProps) -> Html {
                 recipe_set_cloned.set(vec![]);
             }
         },
-        props.clone(),
+        context.recipe_id.unwrap_or(String::default()).clone(),
     );
 
     let empty = (*recipe_set).len() == 0;

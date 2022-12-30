@@ -96,16 +96,35 @@ struct RequirementEditItemProps {
     refresh: Callback<()>,
 }
 
+#[derive(PartialEq, Clone, Default, Debug)]
+struct RequirementEditItemState {
+    quantity_buffer: String,
+}
+
 #[function_component(RequirementEditItem)]
 fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
-    let state = use_state(|| props.requirement.quantity.clone());
+    let state = use_state(|| RequirementEditItemState {
+        quantity_buffer: props.requirement.quantity.clone(),
+    });
+
+    if props.requirement.quantity != state.quantity_buffer {
+        state.set(RequirementEditItemState {
+            quantity_buffer: props.requirement.quantity.clone(),
+        });
+    }
+
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
     let state_cloned = state.clone();
     let on_quantity_edit = Callback::from(move |e: Event| {
-        let target: EventTarget = e.target().expect("");
-        let input = target.unchecked_into::<HtmlInputElement>().value();
-        state_cloned.set(input);
+        let mut data = state_cloned.deref().clone();
+        let quantity = e
+            .target()
+            .expect("")
+            .unchecked_into::<HtmlInputElement>()
+            .value();
+        data.quantity_buffer = quantity;
+        state_cloned.set(data);
     });
 
     let state_cloned = state.clone();
@@ -120,7 +139,7 @@ fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
                 context_cloned.server.as_str(),
                 context_cloned.recipe_id.unwrap().as_str(),
                 props_cloned.requirement.ingredient.id.as_str(),
-                (*state_cloned).as_str(),
+                state_cloned.quantity_buffer.as_str(),
             )
             .await
             {
@@ -158,7 +177,7 @@ fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
             <span>{props.requirement.ingredient.name.as_str()}</span>
             <input
                 type="text"
-                value={(*state).clone()}
+                value={state.quantity_buffer.clone()}
                 onchange={on_quantity_edit}
             />
             <button onclick={update_requirement}>{"Update"}</button>

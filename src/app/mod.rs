@@ -10,14 +10,12 @@ use recipe_window::RecipeWindow;
 use status_bar::{Message, StatusBar};
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
-use web_sys::{EventTarget, HtmlInputElement};
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 #[derive(PartialEq, Clone)]
 struct AppState {
-    server: String,
     update: u32,
-    selected_recipe_id: Option<String>,
     last_error: Message,
     settings_open: bool,
     edition: bool,
@@ -43,9 +41,7 @@ impl Default for AppContext {
 #[function_component(App)]
 pub fn app() -> Html {
     let state = use_state_eq(|| AppState {
-        server: String::from("http://localhost:8000"),
         update: 0,
-        selected_recipe_id: None,
         last_error: Message::None,
         settings_open: false,
         edition: false,
@@ -59,18 +55,26 @@ pub fn app() -> Html {
     });
 
     let context = use_state(|| AppContext {
-        server: state.server.clone(),
-        recipe_id: state.selected_recipe_id.clone(),
+        server: String::from("http://localhost:8000"),
+        recipe_id: None,
         status: display_status,
     });
 
     let state_cloned = state.clone();
+    let context_cloned = context.clone();
     let on_server_change = Callback::from(move |e: Event| {
+        let new_url = e
+            .target()
+            .expect("")
+            .unchecked_into::<HtmlInputElement>()
+            .value();
         let mut data = state_cloned.deref().clone();
-        let target: EventTarget = e.target().expect("");
-        data.server = target.unchecked_into::<HtmlInputElement>().value();
         data.update = data.update + 1;
         state_cloned.set(data);
+
+        let mut data = context_cloned.deref().clone();
+        data.server = new_url;
+        context_cloned.set(data);
     });
 
     let state_cloned = state.clone();
@@ -86,11 +90,16 @@ pub fn app() -> Html {
     });
 
     let state_cloned = state.clone();
+    let context_cloned = context.clone();
     let recipe_deselect = Callback::from(move |_| {
         let mut data = state_cloned.deref().clone();
-        data.selected_recipe_id = None;
         data.edition = false;
+        data.update = data.update + 1;
         state_cloned.set(data);
+
+        let mut data = context_cloned.deref().clone();
+        data.recipe_id = None;
+        context_cloned.set(data);
     });
 
     let state_cloned = state.clone();
@@ -108,14 +117,16 @@ pub fn app() -> Html {
     });
 
     let state_cloned = state.clone();
+    let context_cloned = context.clone();
     let on_delete: Callback<()> = Callback::from(move |_| {
         let mut data = state_cloned.deref().clone();
-
-        data.selected_recipe_id = None;
         data.edition = false;
         data.update = data.update + 1;
+        state_cloned.set(data);
 
-        state_cloned.set(data)
+        let mut data = context_cloned.deref().clone();
+        data.recipe_id = None;
+        context_cloned.set(data);
     });
 
     let window = match state.edition {
@@ -143,7 +154,7 @@ pub fn app() -> Html {
                 <input type="text"
                     name="server"
                     onchange={on_server_change}
-                    value={state.server.clone()}
+                    value={context.server.clone()}
                 />
                 <button
                     class="settings-close"

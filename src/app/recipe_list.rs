@@ -232,7 +232,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
     let refresh_list_cloned = refresh_list.clone();
     use_effect_with_deps(
         move |_| refresh_list_cloned.emit(()),
-        state.selected_labels.clone(),
+        (state.selected_labels.clone(), props.update),
     );
 
     let items = state

@@ -56,9 +56,16 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
         cloned_state.set(data);
     });
 
-    let filters_avail = state
+    let mut filters_avail: Vec<ladle::models::LabelIndex> = state
         .labels
         .difference(&props.selected_labels)
+        .cloned()
+        .collect();
+
+    filters_avail.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+    let filters_avail = filters_avail
+        .iter()
+        .cloned()
         .map(|l| {
             let element_props = props.clone();
             let label = l.clone();

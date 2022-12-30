@@ -12,6 +12,7 @@ use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
+use yew_hooks::prelude::*;
 
 #[derive(PartialEq, Clone)]
 struct AppState {
@@ -54,8 +55,10 @@ pub fn app() -> Html {
         state_cloned.set(data);
     });
 
+    let stored_server = use_local_storage::<String>("server_url".to_string());
+
     let context = use_state(|| AppContext {
-        server: String::from("http://localhost:8000"),
+        server: (*stored_server).clone().unwrap_or_default(),
         recipe_id: None,
         status: display_status,
     });
@@ -73,8 +76,10 @@ pub fn app() -> Html {
         state_cloned.set(data);
 
         let mut data = context_cloned.deref().clone();
-        data.server = new_url;
+        data.server = new_url.clone();
         context_cloned.set(data);
+
+        stored_server.set(new_url);
     });
 
     let state_cloned = state.clone();

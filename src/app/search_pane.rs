@@ -114,6 +114,7 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
                 <input
                     type="search"
                     class="search-bar"
+                    placeholder="Search recipes ..."
                     oninput={on_pattern_change} />
                 <button class="label-tray-toggle" onclick={toggle_tray}>{"labels"}</button>
             </div>

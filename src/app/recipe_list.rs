@@ -264,7 +264,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
         .collect::<Html>();
 
     html! {
-        <div class="recipe-list">
+        <div class="recipe-selection">
             <SearchPane
                 {update_selected_labels}
                 {change_pattern}

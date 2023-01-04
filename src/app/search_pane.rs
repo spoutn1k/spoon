@@ -2,11 +2,14 @@ use crate::app::status_bar::Message;
 use crate::app::AppContext;
 use std::collections::HashSet;
 use std::ops::Deref;
+use wasm_bindgen::JsCast;
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct SearchPaneProps {
     pub update_selected_labels: Callback<HashSet<ladle::models::LabelIndex>>,
+    pub change_pattern: Callback<String>,
     pub selected_labels: HashSet<ladle::models::LabelIndex>,
 }
 
@@ -56,12 +59,7 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
         cloned_state.set(data);
     });
 
-    let mut filters_avail: Vec<ladle::models::LabelIndex> = state
-        .labels
-        .difference(&props.selected_labels)
-        .cloned()
-        .collect();
-
+    let mut filters_avail: Vec<ladle::models::LabelIndex> = state.labels.iter().cloned().collect();
     filters_avail.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
     let filters_avail = filters_avail
         .iter()
@@ -69,48 +67,54 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
         .map(|l| {
             let element_props = props.clone();
             let label = l.clone();
-            html! {
-                <li
-                    key={l.id.as_str()}
-                    class="label filter add"
-                    onclick={Callback::from(move |_|{
-                        let mut copy = element_props.selected_labels.clone();
-                        copy.insert(label.clone());
-                        element_props.update_selected_labels.emit(copy);})}
-                >{
-                    l.name.clone()
-                }</li>
+            if element_props.selected_labels.contains(&l) {
+                html! {
+                    <li
+                        key={l.id.as_str()}
+                        class="label filter remove"
+                        onclick={Callback::from(move |_|{
+                            let mut copy = element_props.selected_labels.clone();
+                            copy.remove(&label);
+                            element_props.update_selected_labels.emit(copy);})}
+                    >{
+                        l.name.clone()
+                    }</li>
+                }
+            } else {
+                html! {
+                    <li
+                        key={l.id.as_str()}
+                        class="label filter add"
+                        onclick={Callback::from(move |_|{
+                            let mut copy = element_props.selected_labels.clone();
+                            copy.insert(label.clone());
+                            element_props.update_selected_labels.emit(copy);})}
+                    >{
+                        l.name.clone()
+                    }</li>
+                }
             }
         })
         .collect::<Html>();
 
-    let filters_selected = props
-        .selected_labels
-        .iter()
-        .map(|l| {
-            let element_props = props.clone();
-            let label = l.clone();
-            html! {
-                <li
-                    key={l.id.as_str()}
-                    class="label filter remove"
-                    onclick={Callback::from(move |_|{
-                        let mut copy = element_props.selected_labels.clone();
-                        copy.remove(&label);
-                        element_props.update_selected_labels.emit(copy);})}
-                >{
-                    l.name.clone()
-                }</li>
-            }
-        })
-        .collect::<Html>();
+    let props_cloned = props.clone();
+    let on_pattern_change = Callback::from(move |e: InputEvent| {
+        let pattern = e
+            .target()
+            .expect("")
+            .unchecked_into::<HtmlInputElement>()
+            .value();
+
+        props_cloned.change_pattern.emit(pattern);
+    });
 
     html! {
         <div class="search-pane">
             <div class="search-header">
-                <ul class="search-bar">
-                    {filters_selected}
-                </ul>
+                <input
+                    type="search"
+                    class="search-bar"
+                    oninput={on_pattern_change} />
                 <button class="label-tray-toggle" onclick={toggle_tray}>{"labels"}</button>
             </div>
             <ul class={format!("available-labels {}", if state.label_tray_shown {"shown"} else {"hidden"})}>

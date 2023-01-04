@@ -98,17 +98,20 @@ struct RequirementEditItemProps {
 
 #[derive(PartialEq, Clone, Default, Debug)]
 struct RequirementEditItemState {
+    ingredient_id: String,
     quantity_buffer: String,
 }
 
 #[function_component(RequirementEditItem)]
 fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
     let state = use_state(|| RequirementEditItemState {
+        ingredient_id: props.requirement.ingredient.id.clone(),
         quantity_buffer: props.requirement.quantity.clone(),
     });
 
-    if props.requirement.quantity != state.quantity_buffer {
+    if props.requirement.ingredient.id != state.ingredient_id {
         state.set(RequirementEditItemState {
+            ingredient_id: props.requirement.ingredient.id.clone(),
             quantity_buffer: props.requirement.quantity.clone(),
         });
     }

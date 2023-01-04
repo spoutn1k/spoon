@@ -8,6 +8,10 @@ use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
 use yew::prelude::*;
 
+fn simplify_name(original: &str) -> String {
+    unidecode::unidecode(original).to_lowercase()
+}
+
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeElementProps {
     id: String,
@@ -181,6 +185,7 @@ pub struct RecipeListProps {
 #[derive(Properties, PartialEq, Clone, Default)]
 pub struct RecipeListState {
     recipes: Vec<ladle::models::RecipeIndex>,
+    pattern: String,
     selected_labels: HashSet<ladle::models::LabelIndex>,
 }
 
@@ -215,7 +220,8 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
                 }
             };
 
-            fetched_recipes.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+            fetched_recipes
+                .sort_by(|lhs, rhs| simplify_name(&lhs.name).cmp(&simplify_name(&rhs.name)));
             data.recipes = fetched_recipes;
             cloned_state.set(data);
         });
@@ -235,9 +241,17 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
         (state.selected_labels.clone(), props.update),
     );
 
+    let state_cloned = state.clone();
+    let change_pattern = Callback::from(move |pattern: String| {
+        let mut data = state_cloned.deref().clone();
+        data.pattern = simplify_name(&pattern);
+        state_cloned.set(data);
+    });
+
     let items = state
         .recipes
         .iter()
+        .filter(|recipe| simplify_name(&recipe.name).contains(&state.pattern))
         .map(|recipe| {
             html! {
                 <RecipeElement
@@ -253,6 +267,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
         <div class="recipe-list">
             <SearchPane
                 {update_selected_labels}
+                {change_pattern}
                 selected_labels={state.selected_labels.clone()}
             />
             <ul class="recipe-index">

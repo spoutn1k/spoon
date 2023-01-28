@@ -1,7 +1,9 @@
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
-use std::collections::HashMap;
+use ladle::models::IngredientIndex;
+use std::collections::HashSet;
 use std::ops::Deref;
+use unidecode::unidecode;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
 use yew::prelude::*;
@@ -13,24 +15,24 @@ struct RequirementAddItemProps {
 
 #[derive(PartialEq, Clone)]
 struct RequirementAddItemState {
-    ingredient_buffer: String,
+    selected_ingredient_id: Option<String>,
     quantity_buffer: String,
 }
 
 #[function_component(RequirementAddItem)]
 fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
     let state = use_state(|| RequirementAddItemState {
-        ingredient_buffer: String::default(),
+        selected_ingredient_id: None,
         quantity_buffer: String::default(),
     });
 
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
     let state_cloned = state.clone();
-    let on_ingredient_edit = Callback::from(move |e: Event| {
+    let on_ingredient_select = Callback::from(move |e: Event| {
         let mut data = state_cloned.deref().clone();
         let target: EventTarget = e.target().expect("");
-        data.ingredient_buffer = target.unchecked_into::<HtmlInputElement>().value();
+        data.selected_ingredient_id = Some(target.unchecked_into::<HtmlInputElement>().value());
         state_cloned.set(data);
     });
 
@@ -51,35 +53,45 @@ fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
         let props_cloned = props_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = state_cloned.deref().clone();
-            match ladle::requirement_create_from_ingredient_name(
-                context_cloned.server.as_str(),
-                context_cloned.recipe_id.unwrap().as_str(),
-                data.ingredient_buffer.as_str(),
-                data.quantity_buffer.as_str(),
-            )
-            .await
-            {
-                Err(message) => context_cloned
-                    .status
-                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
-                Ok(_) => {
-                    props_cloned.refresh.emit(());
-                    data.ingredient_buffer = String::default();
-                    data.quantity_buffer = String::default();
+
+            if let Some(value) = data.selected_ingredient_id {
+                match ladle::requirement_create(
+                    context_cloned.server.as_str(),
+                    context_cloned.recipe_id.unwrap().as_str(),
+                    value.as_str(),
+                    data.quantity_buffer.as_str(),
+                    false,
+                )
+                .await
+                {
+                    Err(message) => context_cloned
+                        .status
+                        .emit(Message::Error(message.to_string(), chrono::Utc::now())),
+                    Ok(_) => {
+                        props_cloned.refresh.emit(());
+                        data.selected_ingredient_id = None;
+                        data.quantity_buffer = String::default();
+
+                        state_cloned.set(data);
+                    }
                 }
             }
-
-            state_cloned.set(data);
         });
     });
 
+    let mut options: Vec<IngredientIndex> = context.ingredient_cache.iter().cloned().collect();
+    options.sort_by(|lhs, rhs| unidecode(&lhs.name).cmp(&unidecode(&rhs.name)));
+    let options = options
+        .iter()
+        .map(|opt| html! {<option value={opt.id.clone()}>{opt.name.clone()}</option>})
+        .collect::<Html>();
+
     html! {
         <li key={"requirement_add"}>
-            <input
-                type="text"
-                value={(*state).ingredient_buffer.clone()}
-                onchange={on_ingredient_edit}
-            />
+            <select onchange={on_ingredient_select}>
+                <option hidden={true} disabled={true} selected={true}>{"Ingredients"}</option>
+                {options}
+            </select>
             <input
                 type="text"
                 value={(*state).quantity_buffer.clone()}
@@ -142,7 +154,8 @@ fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
                 context_cloned.server.as_str(),
                 context_cloned.recipe_id.unwrap().as_str(),
                 props_cloned.requirement.ingredient.id.as_str(),
-                state_cloned.quantity_buffer.as_str(),
+                Some(state_cloned.quantity_buffer.as_str()),
+                None,
             )
             .await
             {
@@ -191,7 +204,7 @@ fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
 
 #[derive(Properties, PartialEq, Clone)]
 struct DependencyEditItemProps {
-    dependency: ladle::models::RecipeIndex,
+    dependency: ladle::models::Dependency,
     refresh: Callback<()>,
 }
 
@@ -205,10 +218,10 @@ fn dependency_edit_item(props: &DependencyEditItemProps) -> Html {
         let props_cloned = props_cloned.clone();
         let context_cloned = context_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
-            match ladle::recipe_unlink(
+            match ladle::dependency_delete(
                 context_cloned.server.as_str(),
                 context_cloned.recipe_id.unwrap().as_str(),
-                props_cloned.dependency.id.as_str(),
+                props_cloned.dependency.recipe.id.as_str(),
             )
             .await
             {
@@ -221,8 +234,8 @@ fn dependency_edit_item(props: &DependencyEditItemProps) -> Html {
     });
 
     html! {
-        <li key={props.dependency.id.as_str()}>
-            <span>{props.dependency.name.as_str()}</span>
+        <li key={props.dependency.recipe.id.as_str()}>
+            <span>{props.dependency.recipe.name.as_str()}</span>
             <button onclick={on_dependency_delete}>{"Delete"}</button>
         </li>
     }
@@ -287,10 +300,12 @@ fn dependency_add_item(props: &TagAddItemProps) -> Html {
         let props_cloned = props_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = state_cloned.deref().clone();
-            match ladle::recipe_link(
+            match ladle::dependency_create(
                 context_cloned.server.as_str(),
                 context_cloned.recipe_id.unwrap().as_str(),
                 data.dependency_id_buffer.clone().unwrap().as_str(),
+                "",
+                false,
             )
             .await
             {
@@ -316,8 +331,8 @@ fn dependency_add_item(props: &TagAddItemProps) -> Html {
     html! {
         <li key={"dependency_add"}>
             <select onchange={on_dependency_select}>
-            <option hidden={true} disabled={true} selected={true}>{"Recipes"}</option>
-            {options}
+                <option hidden={true} disabled={true} selected={true}>{"Recipes"}</option>
+                {options}
             </select>
             <button onclick={create_dependency}>{"Add"}</button>
         </li>
@@ -518,10 +533,16 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
             let state_cloned = state_cloned.clone();
             let refresh_recipe_cloned = refresh_recipe_cloned.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let params = HashMap::from([("name", state_cloned.name_buffer.as_str())]);
                 let id = state_cloned.recipe.clone().unwrap().id.clone();
-                match ladle::recipe_update(context_cloned.server.as_str(), id.as_str(), params)
-                    .await
+                match ladle::recipe_update(
+                    context_cloned.server.as_str(),
+                    id.as_str(),
+                    Some(state_cloned.name_buffer.as_str()),
+                    None,
+                    None,
+                    None,
+                )
+                .await
                 {
                     Ok(_) => refresh_recipe_cloned.emit(()),
                     Err(message) => context_cloned
@@ -541,10 +562,16 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
             let state_cloned = state_cloned.clone();
             let refresh_recipe_cloned = refresh_recipe_cloned.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let params = HashMap::from([("author", state_cloned.author_buffer.as_str())]);
                 let id = state_cloned.recipe.clone().unwrap().id.clone();
-                match ladle::recipe_update(context_cloned.server.as_str(), id.as_str(), params)
-                    .await
+                match ladle::recipe_update(
+                    context_cloned.server.as_str(),
+                    id.as_str(),
+                    None,
+                    Some(state_cloned.author_buffer.as_str()),
+                    None,
+                    None,
+                )
+                .await
                 {
                     Ok(_) => refresh_recipe_cloned.emit(()),
                     Err(message) => context_cloned
@@ -564,11 +591,16 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
             let state_cloned = state_cloned.clone();
             let refresh_recipe_cloned = refresh_recipe_cloned.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let params =
-                    HashMap::from([("directions", state_cloned.directions_buffer.as_str())]);
                 let id = state_cloned.recipe.clone().unwrap().id.clone();
-                match ladle::recipe_update(context_cloned.server.as_str(), id.as_str(), params)
-                    .await
+                match ladle::recipe_update(
+                    context_cloned.server.as_str(),
+                    id.as_str(),
+                    None,
+                    None,
+                    Some(state_cloned.directions_buffer.as_str()),
+                    None,
+                )
+                .await
                 {
                     Ok(_) => refresh_recipe_cloned.emit(()),
                     Err(message) => context_cloned

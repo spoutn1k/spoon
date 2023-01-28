@@ -78,9 +78,14 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
         let mut data = cloned_state.deref().clone();
         let context_cloned = context_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
-            if let Err(error) =
-                ladle::recipe_create(context_cloned.server.as_str(), data.recipe_name.as_str())
-                    .await
+            if let Err(error) = ladle::recipe_create(
+                context_cloned.server.as_str(),
+                data.recipe_name.as_str(),
+                "",
+                "",
+                "",
+            )
+            .await
             {
                 context_cloned
                     .status

@@ -4,10 +4,12 @@ mod recipe_window;
 mod search_pane;
 mod status_bar;
 
+use ladle::models::IngredientIndex;
 use recipe_edit::RecipeEditWindow;
 use recipe_list::RecipeList;
 use recipe_window::RecipeWindow;
 use status_bar::{Message, StatusBar};
+use std::collections::HashSet;
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
@@ -27,6 +29,8 @@ struct AppContext {
     server: String,
     recipe_id: Option<String>,
     status: Callback<Message>,
+
+    ingredient_cache: HashSet<IngredientIndex>,
 }
 
 impl Default for AppContext {
@@ -35,6 +39,7 @@ impl Default for AppContext {
             server: String::default(),
             recipe_id: None,
             status: Callback::from(|_| ()),
+            ingredient_cache: HashSet::new(),
         }
     }
 }
@@ -61,7 +66,23 @@ pub fn app() -> Html {
         server: (*stored_server).clone().unwrap_or_default(),
         recipe_id: None,
         status: display_status,
+        ingredient_cache: HashSet::new(),
     });
+
+    let context_cloned = context.clone();
+    use_effect_with_deps(
+        move |_| {
+            wasm_bindgen_futures::spawn_local(async move {
+                let mut data = context_cloned.deref().clone();
+                let ingredients = ladle::ingredient_index(&context_cloned.server, "")
+                    .await
+                    .unwrap_or(Vec::<_>::new());
+                data.ingredient_cache = ingredients.iter().cloned().collect();
+                context_cloned.set(data);
+            });
+        },
+        state.update,
+    );
 
     let state_cloned = state.clone();
     let context_cloned = context.clone();
@@ -75,9 +96,17 @@ pub fn app() -> Html {
         data.update = data.update + 1;
         state_cloned.set(data);
 
-        let mut data = context_cloned.deref().clone();
-        data.server = new_url.clone();
-        context_cloned.set(data);
+        let context_cloned = context_cloned.clone();
+        let new_url_cloned = new_url.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut data = context_cloned.deref().clone();
+            let ingredients = ladle::ingredient_index(&new_url_cloned, "")
+                .await
+                .unwrap_or(Vec::<_>::new());
+            data.server = new_url_cloned;
+            data.ingredient_cache = ingredients.iter().cloned().collect();
+            context_cloned.set(data);
+        });
 
         stored_server.set(new_url);
     });

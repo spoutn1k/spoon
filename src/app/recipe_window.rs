@@ -1,9 +1,11 @@
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
+use crate::app::Route;
 use futures::future::join_all;
 use pulldown_cmark::{html::push_html, Options, Parser};
 use yew::prelude::*;
 use yew::{html, AttrValue, Html};
+use yew_router::prelude::*;
 
 fn parse_text(value: &str) -> String {
     let options = Options::empty();
@@ -88,26 +90,25 @@ fn calc_missing(list: &Vec<ladle::models::Recipe>) -> Vec<&str> {
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeWindowProps {
-    pub set_edition: Callback<bool>,
-    pub deselect: Callback<()>,
+    pub recipe_id: Option<String>,
 }
 
 #[function_component(RecipeWindow)]
 pub fn recipe_window(props: &RecipeWindowProps) -> Html {
     let recipe_set = use_state(|| vec![]);
-
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
     let recipe_set_cloned = recipe_set.clone();
+    let props_cloned = props.clone();
     let context_cloned = context.clone();
     use_effect_with_deps(
         move |_| {
             let recipe_set_cloned = recipe_set_cloned.clone();
-            if let Some(id) = context_cloned.recipe_id.clone() {
-                let recipe_init = recipe_set_cloned.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    let mut recipes: Vec<ladle::models::Recipe> = vec![];
+            let id = props_cloned.recipe_id.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let mut recipes: Vec<ladle::models::Recipe> = vec![];
 
+                if let Some(id) = id {
                     match ladle::recipe_get(context_cloned.server.as_str(), id.as_str()).await {
                         Ok(recipe) => recipes.push(recipe),
                         Err(message) => context
@@ -134,24 +135,19 @@ pub fn recipe_window(props: &RecipeWindowProps) -> Html {
                                 Err(_) => (),
                             });
                     }
+                }
 
-                    recipe_init.set(recipes)
-                });
-            } else {
-                recipe_set_cloned.set(vec![]);
-            }
+                recipe_set_cloned.set(recipes)
+            });
         },
-        context.recipe_id.unwrap_or(String::default()).clone(),
+        props.recipe_id.clone(),
     );
-
-    let empty = (*recipe_set).len() == 0;
 
     let class;
     let recipe_html;
     let options;
 
-    let props_cloned = props.clone();
-    if empty {
+    if recipe_set.len() == 0 || props.recipe_id.is_none() {
         class = "recipe-display empty";
         recipe_html = html! {
                 <span>{"No data"}</span>
@@ -161,14 +157,16 @@ pub fn recipe_window(props: &RecipeWindowProps) -> Html {
         class = "recipe-display filled";
         recipe_html = render_recipe(&recipe_set);
         options = html! {<div class="options">
-            <button
-                class="recipe-edit"
-                onclick={move |_| props_cloned.set_edition.emit(true)}
-            >{"Edit"}</button>
-            <button
-                class="recipe-deselect"
-                onclick={move |_| props_cloned.deselect.emit(())}
-            >{"Close"}</button>
+            <Link<Route>
+                classes={classes!("recipe-edit")}
+                to={Route::EditRecipe{id: props.recipe_id.clone().unwrap()}}>
+                {"Edit"}
+            </Link<Route>>
+            <Link<Route>
+                classes={classes!("recipe-deselect")}
+                to={Route::ListRecipes}>
+                {"Close"}
+            </Link<Route>>
         </div>};
     };
 

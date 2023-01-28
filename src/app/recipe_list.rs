@@ -1,12 +1,15 @@
 use crate::app::search_pane::SearchPane;
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
+use crate::app::Route;
 use futures::future::join_all;
+use ladle::models::RecipeIndex;
 use std::collections::HashSet;
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
 use yew::prelude::*;
+use yew_router::prelude::*;
 
 fn simplify_name(original: &str) -> String {
     unidecode::unidecode(original).to_lowercase()
@@ -14,24 +17,21 @@ fn simplify_name(original: &str) -> String {
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeElementProps {
-    id: String,
-    name: String,
-    on_click: Callback<String>,
+    item: RecipeIndex,
 }
 
 #[function_component(RecipeElement)]
-pub fn recipe_element(RecipeElementProps { id, name, on_click }: &RecipeElementProps) -> Html {
-    let on_recipe_select = {
-        let on_click = on_click.clone();
-        let id_cloned = id.clone();
-        Callback::from(move |_| on_click.emit(id_cloned.clone()))
-    };
+pub fn recipe_element(
+    RecipeElementProps {
+        item: RecipeIndex { id, name },
+    }: &RecipeElementProps,
+) -> Html {
     html! {
-        <li
-        key={String::from(id)}
-        onclick={on_recipe_select}>{
-            name
-        }</li>
+        <li key={id.as_str()}>
+            <Link<Route> to={Route::ShowRecipe {id:id.clone()}}>
+                {name}
+            </Link<Route>>
+        </li>
     }
 }
 
@@ -182,10 +182,7 @@ async fn fetch_recipes_index(
 }
 
 #[derive(Properties, PartialEq, Clone)]
-pub struct RecipeListProps {
-    pub update: u32,
-    pub on_click: Callback<String>,
-}
+pub struct RecipeListProps {}
 
 #[derive(Properties, PartialEq, Clone, Default)]
 pub struct RecipeListState {
@@ -243,7 +240,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
     let refresh_list_cloned = refresh_list.clone();
     use_effect_with_deps(
         move |_| refresh_list_cloned.emit(()),
-        (state.selected_labels.clone(), props.update),
+        state.selected_labels.clone(),
     );
 
     let state_cloned = state.clone();
@@ -260,9 +257,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
         .map(|recipe| {
             html! {
                 <RecipeElement
-                    id={recipe.id.clone()}
-                    name={recipe.name.clone()}
-                    on_click={props.on_click.clone()}
+                    item={recipe.clone()}
                 />
             }
         })

@@ -15,6 +15,22 @@ use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::prelude::*;
+use yew_router::prelude::*;
+
+#[derive(Clone, Routable, PartialEq)]
+enum Route {
+    #[at("/recipes")]
+    ListRecipes,
+    #[at("/recipes/:id")]
+    ShowRecipe { id: String },
+    #[at("/recipes/:id/edit")]
+    EditRecipe { id: String },
+    #[at("/ingredients")]
+    ListIngredients,
+    #[not_found]
+    #[at("/404")]
+    NotFound,
+}
 
 #[derive(PartialEq, Clone)]
 struct AppState {
@@ -124,26 +140,6 @@ pub fn app() -> Html {
     });
 
     let state_cloned = state.clone();
-    let context_cloned = context.clone();
-    let recipe_deselect = Callback::from(move |_| {
-        let mut data = state_cloned.deref().clone();
-        data.edition = false;
-        data.update = data.update + 1;
-        state_cloned.set(data);
-
-        let mut data = context_cloned.deref().clone();
-        data.recipe_id = None;
-        context_cloned.set(data);
-    });
-
-    let state_cloned = state.clone();
-    let set_edit = Callback::from(move |edition: bool| {
-        let mut data = state_cloned.deref().clone();
-        data.edition = edition;
-        state_cloned.set(data);
-    });
-
-    let state_cloned = state.clone();
     let set_settings_mode = Callback::from(move |mode: bool| {
         let mut data = state_cloned.deref().clone();
         data.settings_open = mode;
@@ -163,19 +159,29 @@ pub fn app() -> Html {
         context_cloned.set(data);
     });
 
-    let window = match state.edition {
-        true => html! {
-            <RecipeEditWindow
-                set_edition={set_edit}
-                on_delete={on_delete}
-            />
-        },
-        false => html! {
-            <RecipeWindow
-                set_edition={set_edit}
-                deselect={recipe_deselect}
-            />
-        },
+    let switch = move |route: Route| -> Html {
+        match route {
+            Route::ListRecipes => html! {
+                <>
+                    <RecipeList/>
+                    <RecipeWindow recipe_id={Option::<String>::None}/>
+                </>
+            },
+            Route::ShowRecipe { id } => html! {
+                <>
+                    <RecipeList />
+                    <RecipeWindow recipe_id={Some(id)}/>
+                </>
+            },
+            Route::ListIngredients => html! {},
+            Route::EditRecipe { id } => html! {
+                <>
+                    <RecipeList />
+                    <RecipeEditWindow recipe_id={id}/>
+                </>
+            },
+            Route::NotFound => html! {"404"},
+        }
     };
 
     let open_settings = set_settings_mode.clone();
@@ -210,11 +216,9 @@ pub fn app() -> Html {
                 </div>
             </div>
             <ContextProvider<AppContext> context={(*context).clone()}>
-            <RecipeList
-                update={state.update}
-                on_click={on_recipe_select}
-            />
-            {window}
+                <BrowserRouter>
+                    <Switch<Route> render={switch} />
+                </BrowserRouter>
             </ContextProvider<AppContext>>
         </main>
     }

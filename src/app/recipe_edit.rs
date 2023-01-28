@@ -1,12 +1,13 @@
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
+use crate::app::Route;
 use ladle::models::IngredientIndex;
-use std::collections::HashSet;
 use std::ops::Deref;
 use unidecode::unidecode;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
 use yew::prelude::*;
+use yew_router::prelude::*;
 
 #[derive(Properties, PartialEq, Clone)]
 struct RequirementAddItemProps {
@@ -445,8 +446,7 @@ fn tag_add_item(props: &TagAddItemProps) -> Html {
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeEditWindowProps {
-    pub set_edition: Callback<bool>,
-    pub on_delete: Callback<()>,
+    pub recipe_id: String,
 }
 
 #[derive(Clone)]
@@ -493,15 +493,10 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
     });
 
     let state_cloned = state.clone();
+    let props_cloned = props.clone();
     let context_cloned = context.clone();
     let refresh_recipe: Callback<()> = Callback::from(move |_| {
-        let recipe_id = context_cloned.recipe_id.clone().unwrap_or_else(|| {
-            context_cloned.status.emit(Message::Info(
-                String::from("Attempted to edit empty recipe"),
-                chrono::Utc::now(),
-            ));
-            String::default()
-        });
+        let recipe_id = props_cloned.recipe_id.clone();
 
         let state_cloned = state_cloned.clone();
         let context_cloned = context_cloned.clone();
@@ -643,8 +638,6 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
     use_effect_with_deps(move |_| refresh_recipe_cloned.emit(()), props.clone());
 
     let props_cloned = props.clone();
-    let on_click_edit = Callback::from(move |_| props_cloned.set_edition.emit(false));
-
     let state_cloned = state.clone();
     if let Some(recipe) = &(*state_cloned).recipe {
         let dependencies = recipe
@@ -729,7 +722,9 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                     />
                 </ul>
                 <div class="options">
-                    <button onclick={on_click_edit}>{"Done"}</button>
+                    <Link<Route> to={Route::ShowRecipe {id: props.recipe_id.clone()}}>
+                        {"Done"}
+                    </Link<Route>>
                     <button onclick={move |_| {on_delete.emit(())}}>{"Delete"}</button>
                 </div>
             </div>

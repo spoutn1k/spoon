@@ -1,7 +1,10 @@
+mod ingredients;
 mod recipes;
 mod search_pane;
 mod status_bar;
 
+use ingredients::list::IngredientList;
+use ingredients::show::IngredientView;
 use ladle::models::IngredientIndex;
 use recipes::recipe_edit::RecipeEditWindow;
 use recipes::recipe_list::RecipeList;
@@ -25,6 +28,8 @@ enum Route {
     EditRecipe { id: String },
     #[at("/ingredients")]
     ListIngredients,
+    #[at("/ingredients/:id")]
+    ShowIngredient { id: String },
     #[not_found]
     #[at("/404")]
     NotFound,
@@ -70,11 +75,19 @@ fn switch(route: Route) -> Html {
                 <RecipeWindow recipe_id={Some(id)}/>
             </>
         },
-        Route::ListIngredients => html! {},
         Route::EditRecipe { id } => html! {
             <>
                 <RecipeList />
                 <RecipeEditWindow recipe_id={id}/>
+            </>
+        },
+        Route::ListIngredients => html! {
+            <IngredientList />
+        },
+        Route::ShowIngredient { id } => html! {
+            <>
+                <IngredientList />
+                <IngredientView ingredient_id={Some(id)}/>
             </>
         },
         Route::NotFound => html! {"404"},

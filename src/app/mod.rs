@@ -56,6 +56,31 @@ impl Default for AppContext {
     }
 }
 
+fn switch(route: Route) -> Html {
+    match route {
+        Route::ListRecipes => html! {
+            <>
+                <RecipeList/>
+                <RecipeWindow recipe_id={Option::<String>::None}/>
+            </>
+        },
+        Route::ShowRecipe { id } => html! {
+            <>
+                <RecipeList />
+                <RecipeWindow recipe_id={Some(id)}/>
+            </>
+        },
+        Route::ListIngredients => html! {},
+        Route::EditRecipe { id } => html! {
+            <>
+                <RecipeList />
+                <RecipeEditWindow recipe_id={id}/>
+            </>
+        },
+        Route::NotFound => html! {"404"},
+    }
+}
+
 #[function_component(App)]
 pub fn app() -> Html {
     let state = use_state_eq(|| AppState {
@@ -129,31 +154,6 @@ pub fn app() -> Html {
         state_cloned.set(data);
     });
 
-    let switch = move |route: Route| -> Html {
-        match route {
-            Route::ListRecipes => html! {
-                <>
-                    <RecipeList/>
-                    <RecipeWindow recipe_id={Option::<String>::None}/>
-                </>
-            },
-            Route::ShowRecipe { id } => html! {
-                <>
-                    <RecipeList />
-                    <RecipeWindow recipe_id={Some(id)}/>
-                </>
-            },
-            Route::ListIngredients => html! {},
-            Route::EditRecipe { id } => html! {
-                <>
-                    <RecipeList />
-                    <RecipeEditWindow recipe_id={id}/>
-                </>
-            },
-            Route::NotFound => html! {"404"},
-        }
-    };
-
     let open_settings = set_settings_mode.clone();
 
     html! {
@@ -173,20 +173,26 @@ pub fn app() -> Html {
                     {"Close"}
                 </button>
             </div>
-            <div class="header">
-                <div class="left">
-                    <button onclick={move |_| set_settings_mode.clone().emit(true)}>
-                        {"Settings"}
-                    </button>
-                </div>
-                <div class="logo">
-                    {format!("spoon v{}", env!("CARGO_PKG_VERSION"))}
-                </div>
-                <div class="right">
-                </div>
-            </div>
             <ContextProvider<AppContext> context={(*context).clone()}>
                 <BrowserRouter>
+                    <div class="header">
+                        <div class="left">
+                            <button onclick={move |_| set_settings_mode.clone().emit(true)}>
+                                {"Settings"}
+                            </button>
+                            <Link<Route> to={Route::ListRecipes}>
+                                {"Recipes"}
+                            </Link<Route>>
+                            <Link<Route> to={Route::ListIngredients}>
+                                {"Ingredients"}
+                            </Link<Route>>
+                        </div>
+                        <div class="logo">
+                            {format!("spoon v{}", env!("CARGO_PKG_VERSION"))}
+                        </div>
+                        <div class="right">
+                        </div>
+                    </div>
                     <Switch<Route> render={switch} />
                 </BrowserRouter>
             </ContextProvider<AppContext>>

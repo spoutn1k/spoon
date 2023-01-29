@@ -1,13 +1,11 @@
-mod recipe_edit;
-mod recipe_list;
-mod recipe_window;
+mod recipes;
 mod search_pane;
 mod status_bar;
 
 use ladle::models::IngredientIndex;
-use recipe_edit::RecipeEditWindow;
-use recipe_list::RecipeList;
-use recipe_window::RecipeWindow;
+use recipes::recipe_edit::RecipeEditWindow;
+use recipes::recipe_list::RecipeList;
+use recipes::recipe_window::RecipeWindow;
 use status_bar::{Message, StatusBar};
 use std::collections::HashSet;
 use std::ops::Deref;

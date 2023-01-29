@@ -1,3 +1,4 @@
+use crate::app::recipes::recipe_edit::EditionContext;
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
 use ladle::models::IngredientIndex;
@@ -26,6 +27,7 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
     });
 
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
+    let edition_context = use_context::<EditionContext>().unwrap_or(EditionContext::default());
 
     let state_cloned = state.clone();
     let on_ingredient_select = Callback::from(move |e: Event| {
@@ -45,10 +47,12 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
 
     let state_cloned = state.clone();
     let context_cloned = context.clone();
+    let edition_context_cloned = edition_context.clone();
     let props_cloned = props.clone();
     let create_requirement = Callback::from(move |_| {
         let state_cloned = state_cloned.clone();
         let context_cloned = context_cloned.clone();
+        let edition_context_cloned = edition_context_cloned.clone();
         let props_cloned = props_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = state_cloned.deref().clone();
@@ -56,7 +60,7 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
             if let Some(value) = data.selected_ingredient_id {
                 match ladle::requirement_create(
                     context_cloned.server.as_str(),
-                    context_cloned.recipe_id.unwrap().as_str(),
+                    edition_context_cloned.recipe_id.as_str(),
                     value.as_str(),
                     data.quantity_buffer.as_str(),
                     false,

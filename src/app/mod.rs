@@ -38,10 +38,9 @@ struct AppState {
     edition: bool,
 }
 
-#[derive(Properties, PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 struct AppContext {
     server: String,
-    recipe_id: Option<String>,
     status: Callback<Message>,
 
     ingredient_cache: HashSet<IngredientIndex>,
@@ -51,7 +50,6 @@ impl Default for AppContext {
     fn default() -> Self {
         AppContext {
             server: String::default(),
-            recipe_id: None,
             status: Callback::from(|_| ()),
             ingredient_cache: HashSet::new(),
         }
@@ -78,7 +76,6 @@ pub fn app() -> Html {
 
     let context = use_state(|| AppContext {
         server: (*stored_server).clone().unwrap_or_default(),
-        recipe_id: None,
         status: display_status,
         ingredient_cache: HashSet::new(),
     });
@@ -126,35 +123,10 @@ pub fn app() -> Html {
     });
 
     let state_cloned = state.clone();
-    let context_cloned = context.clone();
-    let on_recipe_select = Callback::from(move |recipe_id: String| {
-        let mut data = state_cloned.deref().clone();
-        data.edition = false;
-        state_cloned.set(data);
-
-        let mut data = context_cloned.deref().clone();
-        data.recipe_id = Some(recipe_id);
-        context_cloned.set(data);
-    });
-
-    let state_cloned = state.clone();
     let set_settings_mode = Callback::from(move |mode: bool| {
         let mut data = state_cloned.deref().clone();
         data.settings_open = mode;
         state_cloned.set(data);
-    });
-
-    let state_cloned = state.clone();
-    let context_cloned = context.clone();
-    let on_delete: Callback<()> = Callback::from(move |_| {
-        let mut data = state_cloned.deref().clone();
-        data.edition = false;
-        data.update = data.update + 1;
-        state_cloned.set(data);
-
-        let mut data = context_cloned.deref().clone();
-        data.recipe_id = None;
-        context_cloned.set(data);
     });
 
     let switch = move |route: Route| -> Html {

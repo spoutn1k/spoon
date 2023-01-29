@@ -1,3 +1,4 @@
+mod context;
 mod dependency_add;
 mod dependency_edit;
 mod requirement_add;
@@ -11,6 +12,8 @@ use requirement_add::RequirementAddItem;
 use requirement_edit::RequirementEditItem;
 use tag_add::TagAddItem;
 use tag_edit::TagEditItem;
+
+use context::EditionContext;
 
 use crate::app::status_bar::Message;
 use crate::app::{AppContext, Route};
@@ -43,6 +46,9 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
     });
 
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
+    let edit_context = use_state(|| EditionContext {
+        recipe_id: props.recipe_id.clone(),
+    });
 
     let state_cloned = state.clone();
     let on_name_edit = Callback::from(move |e: Event| {
@@ -257,52 +263,54 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
 
         html! {
             <div class="recipe-display edit">
-                <div>
-                    <input type="text"
-                        class="recipe-name edit"
-                        onchange={on_name_edit}
-                        value={state_cloned.name_buffer.clone()}
+                <ContextProvider<EditionContext> context={(*edit_context).clone()}>
+                    <div>
+                        <input type="text"
+                            class="recipe-name edit"
+                            onchange={on_name_edit}
+                            value={state_cloned.name_buffer.clone()}
+                        />
+                        <button onclick={update_name}>{"Update"}</button>
+                    </div>
+                    <div>
+                        <input type="text"
+                            class="recipe-author edit"
+                            onchange={on_author_edit}
+                            value={state_cloned.author_buffer.clone()}
+                        />
+                        <button onclick={update_author}>{"Update"}</button>
+                    </div>
+                    <ul>
+                        {dependencies}
+                        <DependencyAddItem
+                            refresh={refresh_recipe.clone()}
+                        />
+                    </ul>
+                    <ul>
+                        {requirements}
+                        <RequirementAddItem
+                            refresh={refresh_recipe.clone()}
+                        />
+                    </ul>
+                    <textarea
+                        class="recipe-directions edit"
+                        onchange={on_directions_edit}
+                        value={state_cloned.directions_buffer.clone()}
                     />
-                    <button onclick={update_name}>{"Update"}</button>
-                </div>
-                <div>
-                    <input type="text"
-                        class="recipe-author edit"
-                        onchange={on_author_edit}
-                        value={state_cloned.author_buffer.clone()}
-                    />
-                    <button onclick={update_author}>{"Update"}</button>
-                </div>
-                <ul>
-                    {dependencies}
-                    <DependencyAddItem
-                        refresh={refresh_recipe.clone()}
-                    />
-                </ul>
-                <ul>
-                    {requirements}
-                    <RequirementAddItem
-                        refresh={refresh_recipe.clone()}
-                    />
-                </ul>
-                <textarea
-                    class="recipe-directions edit"
-                    onchange={on_directions_edit}
-                    value={state_cloned.directions_buffer.clone()}
-                />
-                <button onclick={update_directions}>{"Update directions"}</button>
-                <ul>
-                    {tags}
-                    <TagAddItem
-                        refresh={refresh_recipe.clone()}
-                    />
-                </ul>
-                <div class="options">
-                    <Link<Route> to={Route::ShowRecipe {id: props.recipe_id.clone()}}>
-                        {"Done"}
-                    </Link<Route>>
-                    <button onclick={move |_| {on_delete.emit(())}}>{"Delete"}</button>
-                </div>
+                    <button onclick={update_directions}>{"Update directions"}</button>
+                    <ul>
+                        {tags}
+                        <TagAddItem
+                            refresh={refresh_recipe.clone()}
+                        />
+                    </ul>
+                    <div class="options">
+                        <Link<Route> to={Route::ShowRecipe {id: props.recipe_id.clone()}}>
+                            {"Done"}
+                        </Link<Route>>
+                        <button onclick={move |_| {on_delete.emit(())}}>{"Delete"}</button>
+                    </div>
+                </ContextProvider<EditionContext>>
             </div>
         }
     } else {

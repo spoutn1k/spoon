@@ -28,10 +28,8 @@ pub fn status_bar(props: &StatusBarProps) -> Html {
         let props_cloned = props.clone();
         use_effect_with_deps(
             move |_| {
-                log::debug!("Displaying status: {:?}", props_cloned.current);
                 match props_cloned.current {
                     Message::Error(_, _) | Message::Info(_, _) => {
-                        log::info!("Showing");
                         state.set(StatusBarState { shown: true })
                     }
                     _ => (),

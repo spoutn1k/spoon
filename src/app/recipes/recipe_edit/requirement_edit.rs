@@ -1,3 +1,4 @@
+use crate::app::recipes::recipe_edit::EditionContext;
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
 use std::ops::Deref;
@@ -32,6 +33,7 @@ pub fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
     }
 
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
+    let edition_context = use_context::<EditionContext>().unwrap_or(EditionContext::default());
 
     let state_cloned = state.clone();
     let on_quantity_edit = Callback::from(move |e: Event| {
@@ -48,14 +50,16 @@ pub fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
     let state_cloned = state.clone();
     let context_cloned = context.clone();
     let props_cloned = props.clone();
+    let recipe_id = edition_context.recipe_id.clone();
     let update_requirement = Callback::from(move |_| {
         let state_cloned = state_cloned.clone();
         let context_cloned = context_cloned.clone();
         let props_cloned = props_cloned.clone();
+        let recipe_id = recipe_id.clone();
         wasm_bindgen_futures::spawn_local(async move {
             match ladle::requirement_update(
                 context_cloned.server.as_str(),
-                context_cloned.recipe_id.unwrap().as_str(),
+                recipe_id.as_str(),
                 props_cloned.requirement.ingredient.id.as_str(),
                 Some(state_cloned.quantity_buffer.as_str()),
                 None,
@@ -72,13 +76,15 @@ pub fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
 
     let props_cloned = props.clone();
     let context_cloned = context.clone();
+    let recipe_id = edition_context.recipe_id.clone();
     let delete_requirement = Callback::from(move |_| {
         let props_cloned = props_cloned.clone();
         let context_cloned = context_cloned.clone();
+        let recipe_id = recipe_id.clone();
         wasm_bindgen_futures::spawn_local(async move {
             match ladle::requirement_delete(
                 context_cloned.server.as_str(),
-                context_cloned.recipe_id.unwrap().as_str(),
+                recipe_id.as_str(),
                 props_cloned.requirement.ingredient.id.as_str(),
             )
             .await

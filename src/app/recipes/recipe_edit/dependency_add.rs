@@ -1,3 +1,4 @@
+use crate::app::recipes::recipe_edit::EditionContext;
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
 use std::ops::Deref;
@@ -24,6 +25,7 @@ pub fn dependency_add_item(props: &DependencyAddItemProps) -> Html {
     });
 
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
+    let edition_context = use_context::<EditionContext>().unwrap_or(EditionContext::default());
 
     let state_cloned = state.clone();
     let context_cloned = context.clone();
@@ -58,15 +60,17 @@ pub fn dependency_add_item(props: &DependencyAddItemProps) -> Html {
     let state_cloned = state.clone();
     let context_cloned = context.clone();
     let props_cloned = props.clone();
+    let recipe_id = edition_context.recipe_id;
     let create_dependency = Callback::from(move |_| {
         let state_cloned = state_cloned.clone();
         let context_cloned = context_cloned.clone();
         let props_cloned = props_cloned.clone();
+        let recipe_id = recipe_id.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = state_cloned.deref().clone();
             match ladle::dependency_create(
                 context_cloned.server.as_str(),
-                context_cloned.recipe_id.unwrap().as_str(),
+                recipe_id.as_str(),
                 data.dependency_id_buffer.clone().unwrap().as_str(),
                 "",
                 false,

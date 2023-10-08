@@ -52,7 +52,8 @@ pub fn view(props: &IngredientViewProps) -> Html {
             let ingredient_id = ingredient_id.clone();
             if let Some(ingredient_id) = ingredient_id {
                 wasm_bindgen_futures::spawn_local(async move {
-                    match ladle::ingredient_get(&context.server, &ingredient_id).await {
+                    match ladle::ingredient_get(&context.settings.server_url, &ingredient_id).await
+                    {
                         Ok(ingredient) => {
                             state_cloned.set(IngredientViewState {
                                 ingredient: Some(ingredient),

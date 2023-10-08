@@ -34,7 +34,7 @@ pub fn dependency_add_item(props: &DependencyAddItemProps) -> Html {
         let context_cloned = context_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = state_cloned.deref().clone();
-            match ladle::recipe_index(context_cloned.server.as_str(), "").await {
+            match ladle::recipe_index(context_cloned.settings.server_url.as_str(), "").await {
                 Ok(mut recipes) => {
                     recipes.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
                     data.choices = recipes;
@@ -69,7 +69,7 @@ pub fn dependency_add_item(props: &DependencyAddItemProps) -> Html {
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = state_cloned.deref().clone();
             match ladle::dependency_create(
-                context_cloned.server.as_str(),
+                context_cloned.settings.server_url.as_str(),
                 recipe_id.as_str(),
                 data.dependency_id_buffer.clone().unwrap().as_str(),
                 "",

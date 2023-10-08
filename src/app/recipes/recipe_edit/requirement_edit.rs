@@ -58,7 +58,7 @@ pub fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
         let recipe_id = recipe_id.clone();
         wasm_bindgen_futures::spawn_local(async move {
             match ladle::requirement_update(
-                context_cloned.server.as_str(),
+                context_cloned.settings.server_url.as_str(),
                 recipe_id.as_str(),
                 props_cloned.requirement.ingredient.id.as_str(),
                 Some(state_cloned.quantity_buffer.as_str()),
@@ -83,7 +83,7 @@ pub fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
         let recipe_id = recipe_id.clone();
         wasm_bindgen_futures::spawn_local(async move {
             match ladle::requirement_delete(
-                context_cloned.server.as_str(),
+                context_cloned.settings.server_url.as_str(),
                 recipe_id.as_str(),
                 props_cloned.requirement.ingredient.id.as_str(),
             )

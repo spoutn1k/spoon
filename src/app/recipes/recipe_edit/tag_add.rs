@@ -45,7 +45,7 @@ pub fn tag_add_item(props: &TagAddItemProps) -> Html {
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = state_cloned.deref().clone();
             match ladle::recipe_tag(
-                context_cloned.server.as_str(),
+                context_cloned.settings.server_url.as_str(),
                 recipe_id.as_str(),
                 data.label_name_buffer.as_str(),
             )

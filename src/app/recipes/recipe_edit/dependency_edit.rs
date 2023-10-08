@@ -23,7 +23,7 @@ pub fn dependency_edit_item(props: &DependencyEditItemProps) -> Html {
         let recipe_id = recipe_id.clone();
         wasm_bindgen_futures::spawn_local(async move {
             match ladle::dependency_delete(
-                context_cloned.server.as_str(),
+                context_cloned.settings.server_url.as_str(),
                 recipe_id.as_str(),
                 props_cloned.dependency.recipe.id.as_str(),
             )

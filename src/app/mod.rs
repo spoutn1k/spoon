@@ -1,19 +1,20 @@
 mod ingredients;
 mod recipes;
 mod search_pane;
+mod settings;
 mod status_bar;
 
 use ingredients::list::IngredientList;
 use ingredients::show::IngredientView;
 use ladle::models::IngredientIndex;
+use log::{debug, info};
 use recipes::recipe_edit::RecipeEditWindow;
 use recipes::recipe_list::RecipeList;
 use recipes::recipe_window::RecipeWindow;
+use settings::{AppSettings, Settings};
 use status_bar::{Message, StatusBar};
 use std::collections::HashSet;
 use std::ops::Deref;
-use wasm_bindgen::JsCast;
-use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::prelude::*;
 use yew_router::prelude::*;
@@ -30,6 +31,8 @@ enum Route {
     ListIngredients,
     #[at("/ingredients/:id")]
     ShowIngredient { id: String },
+    #[at("/settings")]
+    Settings,
     #[not_found]
     #[at("/404")]
     NotFound,
@@ -39,70 +42,41 @@ enum Route {
 struct AppState {
     update: u32,
     last_error: Message,
-    settings_open: bool,
     edition: bool,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        AppState {
+            update: 0,
+            last_error: Message::None,
+            edition: false,
+        }
+    }
 }
 
 #[derive(PartialEq, Clone, Debug)]
 struct AppContext {
-    server: String,
+    settings: AppSettings,
     status: Callback<Message>,
-
     ingredient_cache: HashSet<IngredientIndex>,
 }
 
 impl Default for AppContext {
     fn default() -> Self {
         AppContext {
-            server: String::default(),
+            settings: AppSettings::default(),
             status: Callback::from(|_| ()),
             ingredient_cache: HashSet::new(),
         }
     }
 }
 
-fn switch(route: Route) -> Html {
-    match route {
-        Route::ListRecipes => html! {
-            <>
-                <RecipeList/>
-                <RecipeWindow recipe_id={Option::<String>::None}/>
-            </>
-        },
-        Route::ShowRecipe { id } => html! {
-            <>
-                <RecipeList />
-                <RecipeWindow recipe_id={Some(id)}/>
-            </>
-        },
-        Route::EditRecipe { id } => html! {
-            <>
-                <RecipeList />
-                <RecipeEditWindow recipe_id={id}/>
-            </>
-        },
-        Route::ListIngredients => html! {
-            <IngredientList />
-        },
-        Route::ShowIngredient { id } => html! {
-            <>
-                <IngredientList />
-                <IngredientView ingredient_id={Some(id)}/>
-            </>
-        },
-        Route::NotFound => html! {"404"},
-    }
-}
-
 #[function_component(App)]
 pub fn app() -> Html {
-    let state = use_state_eq(|| AppState {
-        update: 0,
-        last_error: Message::None,
-        settings_open: false,
-        edition: false,
-    });
+    let state = use_state_eq(|| AppState::default());
 
+    // Callback to display a banner on the main window for the user
     let state_cloned = state.clone();
     let display_status = Callback::from(move |status: Message| {
         let mut data = state_cloned.deref().clone();
@@ -110,89 +84,66 @@ pub fn app() -> Html {
         state_cloned.set(data);
     });
 
-    let stored_server = use_local_storage::<String>("server_url".to_string());
+    // Application settings stored on client disk
+    let persistent_settings = use_local_storage::<AppSettings>("persistent_settings".to_string());
+    let ingredient_cache = use_local_storage::<HashSet<ladle::models::IngredientIndex>>(
+        "ingredient_cache".to_string(),
+    );
 
+    // Data accessible by all children
     let context = use_state(|| AppContext {
-        server: (*stored_server).clone().unwrap_or_default(),
+        settings: (*persistent_settings).clone().unwrap_or_default(),
         status: display_status,
-        ingredient_cache: HashSet::new(),
+        ingredient_cache: (*ingredient_cache).clone().unwrap_or_default(),
     });
 
+    // On change of the 'update' field of the state, fetch and cache ingredients
     let context_cloned = context.clone();
     use_effect_with_deps(
         move |_| {
+            debug!("Updating ingredient cache");
             wasm_bindgen_futures::spawn_local(async move {
                 let mut data = context_cloned.deref().clone();
-                let ingredients = ladle::ingredient_index(&context_cloned.server, "")
-                    .await
-                    .unwrap_or(Vec::<_>::new());
-                data.ingredient_cache = ingredients.iter().cloned().collect();
-                context_cloned.set(data);
+                match ladle::ingredient_index(&context_cloned.settings.server_url, "").await {
+                    Ok(ingredients) => {
+                        let set: HashSet<_> = ingredients.iter().cloned().collect();
+                        data.ingredient_cache = set.clone();
+                        context_cloned.set(data);
+                        ingredient_cache.set(set);
+                    }
+                    Err(_) => (),
+                }
             });
         },
         state.update,
     );
 
+    // Callback to update settings to the value passed as an argument
     let state_cloned = state.clone();
     let context_cloned = context.clone();
-    let on_server_change = Callback::from(move |e: Event| {
-        let new_url = e
-            .target()
-            .expect("")
-            .unchecked_into::<HtmlInputElement>()
-            .value();
+    let update_settings = Callback::from(move |settings: AppSettings| {
+        info!("Updating settings: {:#?}", settings);
+        let mut data = context_cloned.deref().clone();
+        data.settings = settings.clone();
+        context_cloned.set(data);
+
+        persistent_settings.set(settings);
+
         let mut data = state_cloned.deref().clone();
         data.update = data.update + 1;
         state_cloned.set(data);
-
-        let context_cloned = context_cloned.clone();
-        let new_url_cloned = new_url.clone();
-        wasm_bindgen_futures::spawn_local(async move {
-            let mut data = context_cloned.deref().clone();
-            let ingredients = ladle::ingredient_index(&new_url_cloned, "")
-                .await
-                .unwrap_or(Vec::<_>::new());
-            data.server = new_url_cloned;
-            data.ingredient_cache = ingredients.iter().cloned().collect();
-            context_cloned.set(data);
-        });
-
-        stored_server.set(new_url);
     });
-
-    let state_cloned = state.clone();
-    let set_settings_mode = Callback::from(move |mode: bool| {
-        let mut data = state_cloned.deref().clone();
-        data.settings_open = mode;
-        state_cloned.set(data);
-    });
-
-    let open_settings = set_settings_mode.clone();
 
     html! {
         <main>
             <StatusBar current={state.last_error.clone()} />
-            <div class={format!("settings {}", if state.settings_open {"open"} else {"close"})}>
-                <label for="server">{"Knife server url:"}</label>
-                <input type="text"
-                    name="server"
-                    onchange={on_server_change}
-                    value={context.server.clone()}
-                />
-                <button
-                    class="settings-close"
-                    onclick={move |_| open_settings.emit(false)}
-                >
-                    {"Close"}
-                </button>
-            </div>
             <ContextProvider<AppContext> context={(*context).clone()}>
                 <BrowserRouter>
                     <div class="header">
                         <div class="left">
-                            <button onclick={move |_| set_settings_mode.clone().emit(true)}>
+                            <Link<Route> to={Route::Settings}>
                                 {"Settings"}
-                            </button>
+                            </Link<Route>>
                             <Link<Route> to={Route::ListRecipes}>
                                 {"Recipes"}
                             </Link<Route>>
@@ -206,7 +157,44 @@ pub fn app() -> Html {
                         <div class="right">
                         </div>
                     </div>
-                    <Switch<Route> render={switch} />
+                    <Switch<Route>
+                        render={Callback::from(move |switch: Route| {
+                            let update_settings = update_settings.clone();
+                            match switch {
+                                Route::ListRecipes => html! {
+                                    <>
+                                        <RecipeList/>
+                                        <RecipeWindow recipe_id={Option::<String>::None}/>
+                                    </>
+                                },
+                                Route::ShowRecipe { id } => html! {
+                                    <>
+                                        <RecipeList />
+                                        <RecipeWindow recipe_id={Some(id)}/>
+                                    </>
+                                },
+                                Route::EditRecipe { id } => html! {
+                                    <>
+                                        <RecipeList />
+                                        <RecipeEditWindow recipe_id={id}/>
+                                    </>
+                                },
+                                Route::ListIngredients => html! {
+                                    <IngredientList />
+                                },
+                                Route::ShowIngredient { id } => html! {
+                                    <>
+                                        <IngredientList />
+                                        <IngredientView ingredient_id={Some(id)}/>
+                                    </>
+                                },
+                                Route::Settings => html! {
+                                    <Settings update_settings={update_settings}/>
+                                },
+                                Route::NotFound => html! {"404"},
+                            }
+                        })}
+                    />
                 </BrowserRouter>
             </ContextProvider<AppContext>>
         </main>

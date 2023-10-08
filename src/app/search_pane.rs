@@ -31,7 +31,8 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
         let context_cloned = context_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = cloned_state.deref().clone();
-            let fetched_labels = ladle::label_index(context_cloned.server.as_str(), "").await;
+            let fetched_labels =
+                ladle::label_index(context_cloned.settings.server_url.as_str(), "").await;
 
             match fetched_labels {
                 Ok(mut index) => {
@@ -50,7 +51,10 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
         });
     });
 
-    use_effect_with_deps(move |_| refresh_labels.emit(()), context.server.clone());
+    use_effect_with_deps(
+        move |_| refresh_labels.emit(()),
+        context.settings.server_url.clone(),
+    );
 
     let cloned_state = state.clone();
     let toggle_tray = Callback::from(move |_| {

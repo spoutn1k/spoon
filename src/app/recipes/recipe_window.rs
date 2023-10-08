@@ -109,7 +109,12 @@ pub fn recipe_window(props: &RecipeWindowProps) -> Html {
                 let mut recipes: Vec<ladle::models::Recipe> = vec![];
 
                 if let Some(id) = id {
-                    match ladle::recipe_get(context_cloned.server.as_str(), id.as_str()).await {
+                    match ladle::recipe_get(
+                        context_cloned.settings.server_url.as_str(),
+                        id.as_str(),
+                    )
+                    .await
+                    {
                         Ok(recipe) => recipes.push(recipe),
                         Err(message) => context
                             .status
@@ -123,9 +128,9 @@ pub fn recipe_window(props: &RecipeWindowProps) -> Html {
                             break;
                         }
 
-                        let fetches = missing
-                            .iter()
-                            .map(|id| ladle::recipe_get(context_cloned.server.as_str(), id));
+                        let fetches = missing.iter().map(|id| {
+                            ladle::recipe_get(context_cloned.settings.server_url.as_str(), id)
+                        });
 
                         join_all(fetches)
                             .await

@@ -85,7 +85,12 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = state_cloned.deref().clone();
 
-            match ladle::recipe_get(context_cloned.server.as_str(), recipe_id.as_str()).await {
+            match ladle::recipe_get(
+                context_cloned.settings.server_url.as_str(),
+                recipe_id.as_str(),
+            )
+            .await
+            {
                 Ok(recipe) => {
                     data.name_buffer = recipe.name.clone();
                     data.author_buffer = recipe.author.clone();
@@ -112,7 +117,7 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 let id = state_cloned.recipe.clone().unwrap().id.clone();
                 match ladle::recipe_update(
-                    context_cloned.server.as_str(),
+                    context_cloned.settings.server_url.as_str(),
                     id.as_str(),
                     Some(state_cloned.name_buffer.as_str()),
                     None,
@@ -141,7 +146,7 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 let id = state_cloned.recipe.clone().unwrap().id.clone();
                 match ladle::recipe_update(
-                    context_cloned.server.as_str(),
+                    context_cloned.settings.server_url.as_str(),
                     id.as_str(),
                     None,
                     Some(state_cloned.author_buffer.as_str()),
@@ -170,7 +175,7 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 let id = state_cloned.recipe.clone().unwrap().id.clone();
                 match ladle::recipe_update(
-                    context_cloned.server.as_str(),
+                    context_cloned.settings.server_url.as_str(),
                     id.as_str(),
                     None,
                     None,

@@ -79,7 +79,7 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
         let context_cloned = context_cloned.clone();
         wasm_bindgen_futures::spawn_local(async move {
             if let Err(error) = ladle::recipe_create(
-                context_cloned.server.as_str(),
+                context_cloned.settings.server_url.as_str(),
                 data.recipe_name.as_str(),
                 "",
                 "",
@@ -206,7 +206,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
             let mut fetched_recipes = match cloned_state.selected_labels.len() {
                 0 => {
                     fetch_recipes_index(
-                        context_cloned.server.as_str(),
+                        context_cloned.settings.server_url.as_str(),
                         cloned_state.selected_labels.clone(),
                         context_cloned.status,
                     )
@@ -214,7 +214,7 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
                 }
                 _ => {
                     fetch_recipes_label_union(
-                        context_cloned.server.as_str(),
+                        context_cloned.settings.server_url.as_str(),
                         cloned_state.selected_labels.clone(),
                         context_cloned.status,
                     )

@@ -22,7 +22,7 @@ pub fn tag_edit_item(props: &TagEditItemProps) -> Html {
         let recipe_id = recipe_id.clone();
         wasm_bindgen_futures::spawn_local(async move {
             match ladle::recipe_untag(
-                context_cloned.server.as_str(),
+                context_cloned.settings.server_url.as_str(),
                 recipe_id.as_str(),
                 props_cloned.label.id.as_str(),
             )

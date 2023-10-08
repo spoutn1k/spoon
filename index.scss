@@ -15,11 +15,13 @@ h3 {
 }
 
 button {
+    /*
     border: unset;
     color: #333333;
     background-color: #00000000;
     font-weight: bold;
     text-decoration: underline;
+    */
 }
 
 input {
@@ -63,44 +65,10 @@ main {
 }
 
 .settings {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    background-color: #ccc;
-    min-width: 20%;
-    padding: 2rem;
-    z-index: 20;
     display: flex;
     flex-flow: column nowrap;
 
     transition: all linear .3s;
-}
-
-.settings.close {
-    opacity: 0;
-    left: -40%;
-}
-
-.settings.open {
-    opacity: 1;
-    left: 0;
-}
-
-.settings.open::before {
-    content: "";
-    position: absolute;
-    background: #333;
-    left: 100%;
-    right: -4000%;
-    top: 0;
-    bottom: 0;
-    opacity: 0.5;
-}
-
-.settings-close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
 }
 
 .recipe-display {

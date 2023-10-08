@@ -59,7 +59,7 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
 
             if let Some(value) = data.selected_ingredient_id {
                 match ladle::requirement_create(
-                    context_cloned.server.as_str(),
+                    context_cloned.settings.server_url.as_str(),
                     edition_context_cloned.recipe_id.as_str(),
                     value.as_str(),
                     data.quantity_buffer.as_str(),

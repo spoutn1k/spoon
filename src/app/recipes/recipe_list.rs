@@ -4,6 +4,8 @@ use crate::app::AppContext;
 use crate::app::Route;
 use futures::future::join_all;
 use ladle::models::RecipeIndex;
+use log::debug;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashSet;
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
@@ -44,7 +46,7 @@ struct RecipeCreateState {
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeCreateProps {
-    pub refresh_list: Callback<()>,
+    pub refresh_recipes: Callback<()>,
 }
 
 #[function_component(RecipeCreateButton)]
@@ -96,7 +98,7 @@ pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
         data.clicked = false;
         data.recipe_name = String::default();
         cloned_state.set(data);
-        props_cloned.refresh_list.emit(());
+        props_cloned.refresh_recipes.emit(());
     });
 
     match (*state).clicked {
@@ -169,7 +171,7 @@ async fn fetch_recipes_label_intersection(
 
 async fn fetch_recipes_index(
     server: &str,
-    _labels: HashSet<ladle::models::LabelIndex>,
+    _: HashSet<ladle::models::LabelIndex>,
     status: Callback<Message>,
 ) -> Vec<ladle::models::RecipeIndex> {
     match ladle::recipe_index(server, "").await {
@@ -190,8 +192,47 @@ pub struct RecipeListProps {}
 #[derive(Properties, PartialEq, Clone, Default)]
 pub struct RecipeListState {
     recipes: Vec<ladle::models::RecipeIndex>,
+    labels: HashSet<ladle::models::LabelIndex>,
     pattern: String,
-    selected_labels: HashSet<ladle::models::LabelIndex>,
+}
+
+fn deserialize_comma_list<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(String::deserialize(deserializer)?
+        .split(",")
+        .filter_map(|string| match string.len() {
+            0 => None,
+            _ => Some(String::from(string)),
+        })
+        .collect())
+}
+
+fn serialize_comma_list<S>(v: &Vec<String>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(v.join(",").as_str())
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct Filters {
+    #[serde(default)]
+    #[serde(
+        deserialize_with = "deserialize_comma_list",
+        serialize_with = "serialize_comma_list"
+    )]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<String>,
+
+    #[serde(default)]
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub restrictions: String,
+
+    #[serde(default)]
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub name: String,
 }
 
 #[function_component(RecipeList)]
@@ -199,18 +240,29 @@ pub fn recipe_list(_: &RecipeListProps) -> Html {
     let state = use_state(|| RecipeListState::default());
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
+    let location = use_location().unwrap();
+    let parameters = location.query::<Filters>().unwrap_or(Filters::default());
+    let selected_labels: HashSet<_> = parameters
+        .labels
+        .iter()
+        .filter_map(|string| state.labels.iter().find(|l| &l.name == string))
+        .cloned()
+        .collect();
+
     let cloned_state = state.clone();
     let context_cloned = context.clone();
-    let refresh_list = Callback::from(move |_| {
+    let labels = selected_labels.clone();
+    let refresh_recipes = Callback::from(move |_| {
         let cloned_state = cloned_state.clone();
         let context_cloned = context_cloned.clone();
+        let labels = labels.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let mut data = cloned_state.deref().clone();
-            let mut fetched_recipes = match cloned_state.selected_labels.len() {
+            let mut fetched_recipes = match labels.len() {
                 0 => {
                     fetch_recipes_index(
                         context_cloned.settings.server_url.as_str(),
-                        cloned_state.selected_labels.clone(),
+                        labels.clone(),
                         context_cloned.status,
                     )
                     .await
@@ -218,7 +270,7 @@ pub fn recipe_list(_: &RecipeListProps) -> Html {
                 _ => {
                     fetch_recipes_label_union(
                         context_cloned.settings.server_url.as_str(),
-                        cloned_state.selected_labels.clone(),
+                        labels.clone(),
                         context_cloned.status,
                     )
                     .await
@@ -232,18 +284,39 @@ pub fn recipe_list(_: &RecipeListProps) -> Html {
         });
     });
 
+    let refresh_recipes_cloned = refresh_recipes.clone();
+    use_effect_with_deps(move |_| refresh_recipes_cloned.emit(()), selected_labels);
+
     let cloned_state = state.clone();
-    let update_selected_labels: Callback<HashSet<ladle::models::LabelIndex>> =
-        Callback::from(move |selected| {
+    let context_cloned = context.clone();
+    let refresh_labels = Callback::from(move |_| {
+        let cloned_state = cloned_state.clone();
+        let context_cloned = context_cloned.clone();
+        wasm_bindgen_futures::spawn_local(async move {
             let mut data = cloned_state.deref().clone();
-            data.selected_labels = selected;
+            let fetched_labels =
+                ladle::label_index(context_cloned.settings.server_url.as_str(), "").await;
+
+            match fetched_labels {
+                Ok(mut index) => {
+                    index.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+                    data.labels = HashSet::from_iter(index.iter().cloned());
+                }
+                Err(message) => {
+                    context_cloned
+                        .status
+                        .emit(Message::Error(message.to_string(), chrono::Utc::now()));
+                    data.labels = HashSet::new();
+                }
+            }
+
             cloned_state.set(data);
         });
+    });
 
-    let refresh_list_cloned = refresh_list.clone();
     use_effect_with_deps(
-        move |_| refresh_list_cloned.emit(()),
-        state.selected_labels.clone(),
+        move |_| refresh_labels.emit(()),
+        context.settings.server_url.clone(),
     );
 
     let state_cloned = state.clone();
@@ -269,14 +342,14 @@ pub fn recipe_list(_: &RecipeListProps) -> Html {
     html! {
      <div class="recipe-selection">
          <SearchPane
-             {update_selected_labels}
+             labels={state.labels.clone()}
              {change_pattern}
-             selected_labels={state.selected_labels.clone()}
+             selected_labels={parameters.labels.iter().cloned().collect::<HashSet<_>>()}
          />
          <ul class="recipe-index">
              {items}
              <RecipeCreateButton
-                 refresh_list={refresh_list}
+                 refresh_recipes={refresh_recipes}
              />
          </ul>
      </div>

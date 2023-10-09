@@ -1,60 +1,32 @@
+use crate::app::recipes::recipe_list::Filters;
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
+use crate::app::Route;
 use std::collections::HashSet;
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
+use yew_router::prelude::*;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct SearchPaneProps {
-    pub update_selected_labels: Callback<HashSet<ladle::models::LabelIndex>>,
+    pub labels: HashSet<ladle::models::LabelIndex>,
     pub change_pattern: Callback<String>,
-    pub selected_labels: HashSet<ladle::models::LabelIndex>,
+    pub selected_labels: HashSet<String>,
 }
 
 #[derive(PartialEq, Clone, Default)]
 struct SearchPaneState {
-    labels: HashSet<ladle::models::LabelIndex>,
     label_tray_shown: bool,
 }
 
 #[function_component(SearchPane)]
 pub fn search_pane(props: &SearchPaneProps) -> Html {
     let state = use_state(|| SearchPaneState::default());
-    let context = use_context::<AppContext>().unwrap_or(AppContext::default());
-
-    let cloned_state = state.clone();
-    let context_cloned = context.clone();
-    let refresh_labels = Callback::from(move |_| {
-        let cloned_state = cloned_state.clone();
-        let context_cloned = context_cloned.clone();
-        wasm_bindgen_futures::spawn_local(async move {
-            let mut data = cloned_state.deref().clone();
-            let fetched_labels =
-                ladle::label_index(context_cloned.settings.server_url.as_str(), "").await;
-
-            match fetched_labels {
-                Ok(mut index) => {
-                    index.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
-                    data.labels = HashSet::from_iter(index.iter().cloned());
-                }
-                Err(message) => {
-                    context_cloned
-                        .status
-                        .emit(Message::Error(message.to_string(), chrono::Utc::now()));
-                    data.labels = HashSet::new();
-                }
-            }
-
-            cloned_state.set(data);
-        });
-    });
-
-    use_effect_with_deps(
-        move |_| refresh_labels.emit(()),
-        context.settings.server_url.clone(),
-    );
+    let navigator = use_navigator().unwrap();
+    let location = use_location().unwrap();
+    let parameters = location.query::<Filters>();
 
     let cloned_state = state.clone();
     let toggle_tray = Callback::from(move |_| {
@@ -63,7 +35,7 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
         cloned_state.set(data);
     });
 
-    let mut filters_avail: Vec<ladle::models::LabelIndex> = state.labels.iter().cloned().collect();
+    let mut filters_avail: Vec<ladle::models::LabelIndex> = props.labels.iter().cloned().collect();
     filters_avail.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
     let filters_avail = filters_avail
         .iter()
@@ -71,15 +43,15 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
         .map(|l| {
             let element_props = props.clone();
             let label = l.clone();
-            if element_props.selected_labels.contains(&l) {
+            let nc = navigator.clone();
+            if element_props.selected_labels.contains(&l.name) {
                 html! {
                     <li
                         key={l.id.as_str()}
                         class="label filter remove"
                         onclick={Callback::from(move |_|{
-                            let mut copy = element_props.selected_labels.clone();
-                            copy.remove(&label);
-                            element_props.update_selected_labels.emit(copy);})}
+                            nc.push_with_query(&Route::ListRecipes, &Filters {labels: vec![], restrictions: String::from(""), name:String::from("")});
+                        })}
                     >{
                         l.name.clone()
                     }</li>
@@ -90,9 +62,8 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
                         key={l.id.as_str()}
                         class="label filter add"
                         onclick={Callback::from(move |_|{
-                            let mut copy = element_props.selected_labels.clone();
-                            copy.insert(label.clone());
-                            element_props.update_selected_labels.emit(copy);})}
+                            nc.push_with_query(&Route::ListRecipes, &Filters {labels: vec![String::from(&label.name)], restrictions: String::from(""), name:String::from("")});
+                        })}
                     >{
                         l.name.clone()
                     }</li>

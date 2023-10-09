@@ -121,8 +121,26 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
                     placeholder="Search recipes ..."
                     oninput={on_pattern_change} />
                 <button class="label-tray-toggle" onclick={toggle_tray}>{"labels"}</button>
+                <div class="restrictions">
+                    <span>
+                        <input type="checkbox" name="vegetarian" value="0" />
+                        <label for="vegetarian">{"Vegetarian"}</label>
+                    </span>
+                    <span>
+                        <input type="checkbox" name="vegan" value="0" />
+                        <label for="vegan">{"Vegan"}</label>
+                    </span>
+                    <span>
+                        <input type="checkbox" name="dairy-free" value="0" />
+                        <label for="dairy-free">{"Dairy-Free"}</label>
+                    </span>
+                    <span>
+                        <input type="checkbox" name="gluten-free" value="0" />
+                        <label for="gluten-free">{"Gluten-Free"}</label>
+                    </span>
+                </div>
             </div>
-            <ul class={format!("available-labels {}", if state.label_tray_shown {"shown"} else {"hidden"})}>
+            <ul class={"available-labels hidden"}>
                 {filters_avail}
             </ul>
         </div>

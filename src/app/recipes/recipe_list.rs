@@ -1,4 +1,4 @@
-use crate::app::search_pane::SearchPane;
+use crate::app::recipes::search_pane::SearchPane;
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
 use crate::app::Route;
@@ -27,10 +27,11 @@ pub fn recipe_element(
     }: &RecipeElementProps,
 ) -> Html {
     html! {
-        <li key={id.as_str()}>
+        <li class={"recipe-item"} key={id.as_str()}>
             <Link<Route> to={Route::ShowRecipe {id:id.clone()}}>
                 {name}
             </Link<Route>>
+            <span class={"knife-id"}>{id.as_str()}</span>
         </li>
     }
 }
@@ -137,6 +138,7 @@ async fn fetch_recipes_label_union(
     Vec::from_iter(recipes)
 }
 
+/*
 async fn fetch_recipes_label_intersection(
     server: &str,
     labels: HashSet<ladle::models::LabelIndex>,
@@ -163,6 +165,7 @@ async fn fetch_recipes_label_intersection(
         _ => vec![],
     }
 }
+*/
 
 async fn fetch_recipes_index(
     server: &str,
@@ -192,7 +195,7 @@ pub struct RecipeListState {
 }
 
 #[function_component(RecipeList)]
-pub fn recipe_list(props: &RecipeListProps) -> Html {
+pub fn recipe_list(_: &RecipeListProps) -> Html {
     let state = use_state(|| RecipeListState::default());
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
@@ -264,18 +267,18 @@ pub fn recipe_list(props: &RecipeListProps) -> Html {
         .collect::<Html>();
 
     html! {
-        <div class="recipe-selection">
-            <SearchPane
-                {update_selected_labels}
-                {change_pattern}
-                selected_labels={state.selected_labels.clone()}
-            />
-            <ul class="recipe-index">
-                {items}
-                <RecipeCreateButton
-                    refresh_list={refresh_list}
-                />
-            </ul>
-        </div>
+     <div class="recipe-selection">
+         <SearchPane
+             {update_selected_labels}
+             {change_pattern}
+             selected_labels={state.selected_labels.clone()}
+         />
+         <ul class="recipe-index">
+             {items}
+             <RecipeCreateButton
+                 refresh_list={refresh_list}
+             />
+         </ul>
+     </div>
     }
 }

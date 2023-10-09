@@ -224,7 +224,6 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
     let refresh_recipe_cloned = refresh_recipe.clone();
     use_effect_with_deps(move |_| refresh_recipe_cloned.emit(()), props.clone());
 
-    let props_cloned = props.clone();
     let state_cloned = state.clone();
     if let Some(recipe) = &(*state_cloned).recipe {
         let dependencies = recipe

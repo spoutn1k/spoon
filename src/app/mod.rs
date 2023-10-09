@@ -1,6 +1,5 @@
 mod ingredients;
 mod recipes;
-mod search_pane;
 mod settings;
 mod status_bar;
 
@@ -162,22 +161,13 @@ pub fn app() -> Html {
                             let update_settings = update_settings.clone();
                             match switch {
                                 Route::ListRecipes => html! {
-                                    <>
-                                        <RecipeList/>
-                                        <RecipeWindow recipe_id={Option::<String>::None}/>
-                                    </>
+                                    <RecipeList/>
                                 },
                                 Route::ShowRecipe { id } => html! {
-                                    <>
-                                        <RecipeList />
-                                        <RecipeWindow recipe_id={Some(id)}/>
-                                    </>
+                                    <RecipeWindow recipe_id={Some(id)}/>
                                 },
                                 Route::EditRecipe { id } => html! {
-                                    <>
-                                        <RecipeList />
-                                        <RecipeEditWindow recipe_id={id}/>
-                                    </>
+                                    <RecipeEditWindow recipe_id={id}/>
                                 },
                                 Route::ListIngredients => html! {
                                     <IngredientList />

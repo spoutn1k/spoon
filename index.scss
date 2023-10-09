@@ -32,12 +32,10 @@ input {
 }
 
 main {
-    display: grid;
-    grid-template-areas: "header header" "list recipe";
+    display: flex;
+    flex-flow: column;
     height: 100%;
     width: 100%;
-    grid-template-columns: 2fr 3fr;
-    grid-template-rows: min-content 1fr;
 }
 
 .header {
@@ -112,27 +110,45 @@ main {
 }
 
 .recipe-selection {
-    grid-area: list;
     height: 100%;
     display: flex;
     flex-flow: row nowrap;
     overflow: hidden;
 
-    ul {
-        margin: 0;
+    .recipe-index {
+        margin: 0 3rem;
         padding: 0;
         list-style: none;
         overflow-y: scroll;
         scrollbar-width: none;
+        width: 100%;
 
-        li {
+        .recipe-item {
+            &:nth-child(odd) {
+                align-items: flex-start;
+            }
+
+            &:nth-child(even) {
+                align-items: flex-end;
+                // justify-content: right;
+            }
+
             display: flex;
-            align-items: center;
-            justify-content: left;
-            height: 2rem;
+            flex-flow: column;
+            padding: 1rem 0;
 
-            border-top: solid 1px #ddd;
-            border-bottom: solid 1px #ddd;
+            a {
+                text-decoration: none;
+                font-family: 'Lora', serif;
+                font-weight: bold;
+                font-size: 2rem;
+                color: #222;
+            }
+
+            .knife-id {
+                color: #555;
+                font-size: .8rem;
+            }
         }
     }
 
@@ -147,6 +163,8 @@ main {
 
         .search-header {
             display: flex;
+            flex-flow: column nowrap;
+            gap: .5rem;
 
             .label-tray-toggle {
                 display: none;
@@ -161,11 +179,23 @@ main {
                 flex-flow: row nowrap;
                 align-items: center;
             }
+
+            .restrictions {
+                display: flex;
+                flex-flow: column;
+            }
         }
 
-        .available-labels {}
+        .available-labels {
+            display: flex;
+            flex-flow: row wrap;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            gap: .5rem;
+            line-height: 1rem;
 
-        .available-labels.hidden {}
+        }
 
         .label.filter {
             //@extend %label;
@@ -176,9 +206,6 @@ main {
         }
     }
 
-    .recipe-index {
-        flex-basis: 50%;
-    }
 }
 
 .recipe-display.empty {
@@ -194,7 +221,7 @@ main {
 
 .recipe-display {
     position: relative;
-    padding: 2rem;
+    padding: 4rem;
 
     overflow-y: scroll;
 

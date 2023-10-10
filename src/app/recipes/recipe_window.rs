@@ -4,7 +4,6 @@ use crate::app::Route;
 use futures::future::join_all;
 use pulldown_cmark::{html::push_html, Options, Parser};
 use yew::prelude::*;
-use yew::{html, AttrValue, Html};
 use yew_router::prelude::*;
 
 fn parse_text(value: &str) -> String {
@@ -95,6 +94,7 @@ pub struct RecipeWindowProps {
 
 #[function_component(RecipeWindow)]
 pub fn recipe_window(props: &RecipeWindowProps) -> Html {
+    let navigator = use_navigator().unwrap();
     let recipe_set = use_state(|| vec![]);
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
 
@@ -151,6 +151,7 @@ pub fn recipe_window(props: &RecipeWindowProps) -> Html {
     let class;
     let recipe_html;
     let options;
+    let nc = navigator.clone();
 
     if recipe_set.len() == 0 || props.recipe_id.is_none() {
         class = "recipe-display empty";
@@ -167,11 +168,13 @@ pub fn recipe_window(props: &RecipeWindowProps) -> Html {
                 to={Route::EditRecipe{id: props.recipe_id.clone().unwrap()}}>
                 {"Edit"}
             </Link<Route>>
-            <Link<Route>
-                classes={classes!("recipe-deselect")}
-                to={Route::ListRecipes}>
+            <button
+                class={classes!("recipe-deselect")}
+                onclick={Callback::from(move |_| {
+                    nc.back();
+                })}>
                 {"Close"}
-            </Link<Route>>
+            </button>
         </div>};
     };
 

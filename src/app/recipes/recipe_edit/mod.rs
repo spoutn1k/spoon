@@ -38,6 +38,8 @@ pub struct RecipeEditWindowState {
 
 #[function_component(RecipeEditWindow)]
 pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
+    let navigator = use_navigator().unwrap();
+
     let state = use_state(|| RecipeEditWindowState {
         recipe: None,
         name_buffer: String::default(),
@@ -265,6 +267,8 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
             })
             .collect::<Html>();
 
+        let nc = navigator.clone();
+
         html! {
             <div class="recipe-display edit">
                 <ContextProvider<EditionContext> context={(*edit_context).clone()}>
@@ -309,10 +313,14 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                         />
                     </ul>
                     <div class="options">
-                        <Link<Route> to={Route::ShowRecipe {id: props.recipe_id.clone()}}>
-                            {"Done"}
-                        </Link<Route>>
                         <button onclick={move |_| {on_delete.emit(())}}>{"Delete"}</button>
+                        <button
+                            class={classes!("recipe-deselect")}
+                            onclick={Callback::from(move |_| {
+                                nc.back();
+                            })}>
+                            {"Close"}
+                        </button>
                     </div>
                 </ContextProvider<EditionContext>>
             </div>

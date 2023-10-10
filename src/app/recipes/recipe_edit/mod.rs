@@ -16,7 +16,7 @@ use tag_edit::TagEditItem;
 use context::EditionContext;
 
 use crate::app::status_bar::Message;
-use crate::app::{AppContext, Route};
+use crate::app::AppContext;
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};

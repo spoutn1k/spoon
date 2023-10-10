@@ -6,7 +6,6 @@ mod status_bar;
 use ingredients::list::IngredientList;
 use ingredients::show::IngredientView;
 use ladle::models::IngredientIndex;
-use log::{debug, info};
 use recipes::list::RecipeList;
 use recipes::recipe_edit::RecipeEditWindow;
 use recipes::recipe_window::RecipeWindow;
@@ -100,7 +99,6 @@ pub fn app() -> Html {
     let context_cloned = context.clone();
     use_effect_with_deps(
         move |_| {
-            debug!("Updating ingredient cache");
             wasm_bindgen_futures::spawn_local(async move {
                 let mut data = context_cloned.deref().clone();
                 match ladle::ingredient_index(&context_cloned.settings.server_url, "").await {
@@ -121,7 +119,6 @@ pub fn app() -> Html {
     let state_cloned = state.clone();
     let context_cloned = context.clone();
     let update_settings = Callback::from(move |settings: AppSettings| {
-        info!("Updating settings: {:#?}", settings);
         let mut data = context_cloned.deref().clone();
         data.settings = settings.clone();
         context_cloned.set(data);

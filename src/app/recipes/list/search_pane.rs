@@ -24,7 +24,7 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
     let state = use_state(|| SearchPaneState::default());
     let navigator = use_navigator().unwrap();
     let location = use_location().unwrap();
-    let parameters = location.query::<Filters>();
+    let parameters = location.query::<Filters>().unwrap_or(Filters::default());
 
     let cloned_state = state.clone();
     let toggle_tray = Callback::from(move |_| {
@@ -32,7 +32,6 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
         data.label_tray_shown = !data.label_tray_shown;
         cloned_state.set(data);
     });
-
     let mut filters_avail: Vec<ladle::models::LabelIndex> = props.labels.iter().cloned().collect();
     filters_avail.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
     let filters_avail = filters_avail
@@ -40,37 +39,55 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
         .cloned()
         .map(|l| {
             let element_props = props.clone();
-            let label = l.clone();
             let nc = navigator.clone();
+            let lc = l.clone();
+            let selected = parameters.labels.clone();
             if element_props.selected_labels.contains(&l.name) {
                 html! {
-                    <li
-                        key={l.id.as_str()}
-                        class="label filter remove"
-                        onclick={Callback::from(move |_|{
-                            nc.push_with_query(&Route::ListRecipes, 
-                                &Filters {
-                                    labels: vec![], 
-                                    restrictions: String::from(""), 
-                                    name:String::from("")
-                                });
-                        })}
-                    >{
-                        l.name.clone()
-                    }</li>
-                }
+                        <li
+                            key={l.id.as_str()}
+                            class="label filter remove"
+                            onclick={Callback::from(move |_| {
+                    let mut new_labels = selected.clone();
+                    if let Some(pos) = new_labels.iter().position(|x| *x == lc.name) {
+                        new_labels.remove(pos);
+                    }
+
+                    let _ = nc.push_with_query(
+                        &Route::ListRecipes,
+                        &Filters {
+                            labels: new_labels,
+                            restrictions: String::from(""),
+                            name: String::from(""),
+                        },
+                    );
+                })}
+                        >{
+                            l.name.clone()
+                        }</li>
+                    }
             } else {
                 html! {
-                    <li
-                        key={l.id.as_str()}
-                        class="label filter add"
-                        onclick={Callback::from(move |_|{
-                            nc.push_with_query(&Route::ListRecipes, &Filters {labels: vec![String::from(&label.name)], restrictions: String::from(""), name:String::from("")});
-                        })}
-                    >{
-                        l.name.clone()
-                    }</li>
-                }
+                        <li
+                            key={l.id.as_str()}
+                            class="label filter add"
+                            onclick={Callback::from(move |_| {
+                    let mut new_labels = selected.clone();
+                    new_labels.push(lc.name.clone());
+
+                    let _ = nc.push_with_query(
+                        &Route::ListRecipes,
+                        &Filters {
+                            labels: new_labels,
+                            restrictions: String::from(""),
+                            name: String::from(""),
+                        },
+                    );
+                })}
+                        >{
+                            l.name.clone()
+                        }</li>
+                    }
             }
         })
         .collect::<Html>();

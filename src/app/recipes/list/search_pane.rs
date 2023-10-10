@@ -1,6 +1,4 @@
-use crate::app::recipes::recipe_list::Filters;
-use crate::app::status_bar::Message;
-use crate::app::AppContext;
+use crate::app::recipes::list::Filters;
 use crate::app::Route;
 use std::collections::HashSet;
 use std::ops::Deref;
@@ -50,7 +48,12 @@ pub fn search_pane(props: &SearchPaneProps) -> Html {
                         key={l.id.as_str()}
                         class="label filter remove"
                         onclick={Callback::from(move |_|{
-                            nc.push_with_query(&Route::ListRecipes, &Filters {labels: vec![], restrictions: String::from(""), name:String::from("")});
+                            nc.push_with_query(&Route::ListRecipes, 
+                                &Filters {
+                                    labels: vec![], 
+                                    restrictions: String::from(""), 
+                                    name:String::from("")
+                                });
                         })}
                     >{
                         l.name.clone()

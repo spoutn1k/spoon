@@ -27,6 +27,20 @@ fn render_ingredient(data: &Ingredient) -> Html {
         })
         .collect::<Html>();
 
+    let mut classifications = vec![];
+    if data.classifications.dairy {
+        classifications.push("produit laitier")
+    }
+    if data.classifications.meat {
+        classifications.push("viande")
+    }
+    if data.classifications.gluten {
+        classifications.push("gluten")
+    }
+    if data.classifications.animal_product {
+        classifications.push("produit animalier")
+    }
+
     let trail = match data.used_in.len() {
         0 => ".",
         1 => ":",
@@ -36,6 +50,9 @@ fn render_ingredient(data: &Ingredient) -> Html {
     html! {
         <div>
             <h1>{data.name.as_str()}</h1>
+            if classifications.len() > 0 {
+                <p>{format!("Contient: {}.", classifications.join(", "))}</p>
+            }
             <h3>{format!("Used in {} recipe{}", data.used_in.len(), trail)}</h3>
             <ul>
                 {recipes}

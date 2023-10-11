@@ -15,5 +15,5 @@ pub fn list() -> Html {
         .map(|i| html! {<IngredientListItem data={(*i).clone()}/>})
         .collect::<Html>();
 
-    return html! {<ul>{items}</ul>};
+    return html! {<ul class={"ingredient-list"}>{items}</ul>};
 }

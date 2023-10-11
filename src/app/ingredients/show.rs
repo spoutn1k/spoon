@@ -27,9 +27,16 @@ fn render_ingredient(data: &Ingredient) -> Html {
         })
         .collect::<Html>();
 
+    let trail = match data.used_in.len() {
+        0 => ".",
+        1 => ":",
+        _ => "s:",
+    };
+
     html! {
         <div>
             <h1>{data.name.as_str()}</h1>
+            <h3>{format!("Used in {} recipe{}", data.used_in.len(), trail)}</h3>
             <ul>
                 {recipes}
             </ul>
@@ -70,7 +77,7 @@ pub fn view(props: &IngredientViewProps) -> Html {
     );
 
     match &state.ingredient {
-        None => html! {"No data !"},
+        None => html! {},
         Some(data) => render_ingredient(data),
     }
 }

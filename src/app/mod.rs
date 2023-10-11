@@ -3,6 +3,7 @@ mod recipes;
 mod settings;
 mod status_bar;
 
+use ingredients::create::IngredientCreateButton;
 use ingredients::list::IngredientList;
 use ingredients::show::IngredientView;
 use ladle::models::IngredientIndex;
@@ -167,13 +168,18 @@ pub fn app() -> Html {
                                     <RecipeEditWindow recipe_id={id}/>
                                 },
                                 Route::ListIngredients => html! {
-                                    <IngredientList />
+                                    <div class={"ingredient-main"}>
+                                        <IngredientList />
+                                        <IngredientView ingredient_id={Option::<String>::None}/>
+                                        <IngredientCreateButton />
+                                    </div>
                                 },
                                 Route::ShowIngredient { id } => html! {
-                                    <>
+                                    <div class={"ingredient-main"}>
                                         <IngredientList />
                                         <IngredientView ingredient_id={Some(id)}/>
-                                    </>
+                                        <IngredientCreateButton />
+                                    </div>
                                 },
                                 Route::Settings => html! {
                                     <Settings update_settings={update_settings}/>

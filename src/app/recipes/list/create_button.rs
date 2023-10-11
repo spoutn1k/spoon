@@ -1,84 +1,63 @@
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
-use std::ops::Deref;
-use wasm_bindgen::JsCast;
-use web_sys::{EventTarget, HtmlInputElement};
+use crate::app::Route;
 use yew::prelude::*;
+use yew_router::prelude::*;
 
-#[derive(Clone)]
-struct RecipeCreateState {
-    clicked: bool,
-    recipe_name: String,
-}
+static RECIPE_NAME_PROMPT: &str = "Recipe name:";
+
+#[derive(Clone, Default)]
+struct RecipeCreateState {}
 
 #[derive(Properties, PartialEq, Clone)]
-pub struct RecipeCreateProps {
-    pub refresh_recipes: Callback<()>,
-}
+pub struct RecipeCreateProps {}
 
 #[function_component(RecipeCreateButton)]
-pub fn recipe_create_button(props: &RecipeCreateProps) -> Html {
-    let state = use_state(|| RecipeCreateState {
-        clicked: false,
-        recipe_name: String::from(""),
-    });
-
+pub fn recipe_create_button(_props: &RecipeCreateProps) -> Html {
+    let _state = use_state(RecipeCreateState::default);
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
+    let navigator = use_navigator().unwrap();
 
-    let cloned_state = state.clone();
-    let label_clicked = Callback::from(move |_| {
-        let mut data = cloned_state.deref().clone();
-        data.clicked = true;
-        cloned_state.set(data)
-    });
-
-    let cloned_state = state.clone();
-    let name_changed = Callback::from(move |e: Event| {
-        let target: EventTarget = e.target().expect("Error accessing name input");
-        let name = target.unchecked_into::<HtmlInputElement>().value();
-        let mut data = cloned_state.deref().clone();
-        data.recipe_name = name;
-        cloned_state.set(data);
-    });
-
-    let cloned_state = state.clone();
     let context_cloned = context.clone();
-    let props_cloned = props.clone();
-    let name_submit = Callback::from(move |_| {
-        let mut data = cloned_state.deref().clone();
+    let name_submit = Callback::from(move |name: String| {
         let context_cloned = context_cloned.clone();
+        let nc = navigator.clone();
         wasm_bindgen_futures::spawn_local(async move {
-            if let Err(error) = ladle::recipe_create(
+            match ladle::recipe_create(
                 context_cloned.settings.server_url.as_str(),
-                data.recipe_name.as_str(),
+                name.as_str(),
                 "",
                 "",
                 "",
             )
             .await
             {
-                context_cloned
+                Ok(recipe) => nc.push(&Route::ShowRecipe { id: recipe.id }),
+                Err(error) => context_cloned
                     .status
-                    .emit(Message::Error(error.to_string(), chrono::Utc::now()));
-            };
+                    .emit(Message::Error(error.to_string(), chrono::Utc::now())),
+            }
         });
-        data.clicked = false;
-        data.recipe_name = String::default();
-        cloned_state.set(data);
-        props_cloned.refresh_recipes.emit(());
     });
 
-    match (*state).clicked {
-        false => html! {
-            <li key="new" onclick={label_clicked}>
-                {"Add recipe"}
-            </li>
-        },
-        true => html! {
-            <li key="new">
-                <input type="text" value={state.recipe_name.clone()} onchange={name_changed} />
-                <input type="submit" onclick={name_submit}/>
-            </li>
-        },
+    let context_cloned = context.clone();
+    let name_prompt = Callback::from(move |_| {
+        match web_sys::window()
+            .unwrap()
+            .prompt_with_message(RECIPE_NAME_PROMPT)
+        {
+            Ok(Some(name)) => name_submit.emit(name),
+            Ok(None) => (),
+            Err(error) => context_cloned.status.emit(Message::Error(
+                error.as_string().unwrap_or(String::default()),
+                chrono::Utc::now(),
+            )),
+        }
+    });
+
+    html! {
+        <button class="create-recipe" onclick={name_prompt}>
+            {"Add recipe"}
+        </button>
     }
 }

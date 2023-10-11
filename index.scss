@@ -112,6 +112,7 @@ main {
 .recipe-selection {
     height: 100%;
     display: flex;
+    position: relative;
     flex-flow: row nowrap;
     overflow: hidden;
 
@@ -206,6 +207,11 @@ main {
         }
     }
 
+    .create-recipe {
+        position: absolute;
+        top: 0;
+        right: 0;
+    }
 }
 
 .recipe-display.empty {

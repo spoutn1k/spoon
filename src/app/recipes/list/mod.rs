@@ -209,8 +209,7 @@ pub fn recipe_list(_: &RecipeListProps) -> Html {
         });
     });
 
-    let refresh_recipes_cloned = refresh_recipes.clone();
-    use_effect_with_deps(move |_| refresh_recipes_cloned.emit(()), selected_labels);
+    use_effect_with_deps(move |_| refresh_recipes.emit(()), selected_labels);
 
     use_effect_with_deps(
         move |_| refresh_labels.emit(()),
@@ -239,10 +238,8 @@ pub fn recipe_list(_: &RecipeListProps) -> Html {
              />
              <ul class="recipe-index">
                  {items}
-                 <RecipeCreateButton
-                     refresh_recipes={refresh_recipes}
-                 />
              </ul>
+            <RecipeCreateButton />
          </div>
     }
 }

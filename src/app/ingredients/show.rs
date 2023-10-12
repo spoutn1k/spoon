@@ -1,4 +1,4 @@
-use crate::app::{AppContext, Message, Route};
+use crate::app::{set_title, AppContext, Message, Route};
 use ladle::models::{Ingredient, RecipeIndex};
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -95,6 +95,9 @@ pub fn view(props: &IngredientViewProps) -> Html {
 
     match &state.ingredient {
         None => html! {},
-        Some(data) => render_ingredient(data),
+        Some(data) => {
+            set_title(&format!("{} - spoon", data.name));
+            render_ingredient(data)
+        }
     }
 }

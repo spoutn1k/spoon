@@ -1,4 +1,4 @@
-use crate::app::AppContext;
+use crate::app::{set_title, AppContext};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
@@ -23,6 +23,8 @@ struct SettingsState {
 pub fn settings(props: &SettingsProps) -> Html {
     let state = use_state(|| SettingsState::default());
     let context = use_context::<AppContext>().unwrap_or_default();
+
+    set_title("Settings - spoon");
 
     let state_cloned = state.clone();
     let on_server_edit = Callback::from(move |e: Event| {

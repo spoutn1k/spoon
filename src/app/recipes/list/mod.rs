@@ -7,6 +7,7 @@ use crate::app::recipes::list::create_button::RecipeCreateButton;
 use crate::app::recipes::list::element::RecipeElement;
 use crate::app::recipes::list::filters::Filters;
 use crate::app::recipes::list::search_pane::SearchPane;
+use crate::app::set_title;
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
 use futures::future::join_all;
@@ -148,6 +149,8 @@ pub fn recipe_list(_: &RecipeListProps) -> Html {
     let change_pattern = Callback::from(move |pattern: String| {
         cloned_state.dispatch(RecipeListAction::UpdatePattern(pattern))
     });
+
+    set_title("Recipes - spoon");
 
     let cloned_state = state.clone();
     let context_cloned = context.clone();

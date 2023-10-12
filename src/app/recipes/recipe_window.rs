@@ -1,3 +1,4 @@
+use crate::app::set_title;
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
 use crate::app::Route;
@@ -160,6 +161,7 @@ pub fn recipe_window(props: &RecipeWindowProps) -> Html {
         };
         options = html! {};
     } else {
+        set_title(&format!("{} - spoon", recipe_set.first().unwrap().name));
         class = "recipe-display filled";
         recipe_html = render_recipe(&recipe_set);
         options = html! {<div class="options">

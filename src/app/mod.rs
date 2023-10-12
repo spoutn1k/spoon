@@ -71,6 +71,14 @@ impl Default for AppContext {
     }
 }
 
+pub fn set_title(title: &str) {
+    if let Some(window) = web_sys::window() {
+        if let Some(document) = window.document() {
+            document.set_title(title)
+        }
+    }
+}
+
 #[function_component(App)]
 pub fn app() -> Html {
     let state = use_state_eq(|| AppState::default());

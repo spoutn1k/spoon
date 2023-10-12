@@ -142,6 +142,7 @@ pub fn app() -> Html {
         persistent_settings.set(settings);
     });
 
+    let context_cloned = context.clone();
     html! {
         <main>
             <StatusBar current={state.last_error.clone()} />
@@ -167,6 +168,7 @@ pub fn app() -> Html {
                     </div>
                     <Switch<Route>
                         render={Callback::from(move |switch: Route| {
+                            let context_cloned = context_cloned.clone();
                             let update_settings = update_settings.clone();
                             let update_ingredient_cache = update_ingredient_cache.clone();
                             match switch {
@@ -194,7 +196,7 @@ pub fn app() -> Html {
                                     </div>
                                 },
                                 Route::Settings => html! {
-                                    <Settings update_settings={update_settings}/>
+                                    <Settings current={context_cloned.settings.clone()} update_settings={update_settings}/>
                                 },
                                 Route::NotFound => html! {"404"},
                             }

@@ -1,6 +1,4 @@
-use crate::app::status_bar::Message;
-use crate::app::AppContext;
-use crate::app::Route;
+use crate::app::{status_bar::Message, AppContext, Route};
 use yew::prelude::*;
 use yew_router::prelude::*;
 

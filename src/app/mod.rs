@@ -39,7 +39,6 @@ enum Route {
 
 #[derive(PartialEq, Clone)]
 struct AppState {
-    update: u32,
     last_error: Message,
     edition: bool,
 }
@@ -47,7 +46,6 @@ struct AppState {
 impl Default for AppState {
     fn default() -> Self {
         AppState {
-            update: 0,
             last_error: Message::None,
             edition: false,
         }
@@ -104,28 +102,37 @@ pub fn app() -> Html {
         ingredient_cache: (*ingredient_cache).clone().unwrap_or_default(),
     });
 
-    // On change of the 'update' field of the state, fetch and cache ingredients
+    // Callback to trigger a refresh of the ingredient cache
     let context_cloned = context.clone();
-    use_effect_with_deps(
-        move |_| {
-            wasm_bindgen_futures::spawn_local(async move {
-                let mut data = context_cloned.deref().clone();
-                match ladle::ingredient_index(&context_cloned.settings.server_url, "").await {
-                    Ok(ingredients) => {
-                        let set: HashSet<_> = ingredients.iter().cloned().collect();
-                        data.ingredient_cache = set.clone();
-                        context_cloned.set(data);
-                        ingredient_cache.set(set);
-                    }
-                    Err(_) => (),
+    let update_ingredient_cache = Callback::from(move |_| {
+        let context_cloned = context_cloned.clone();
+        let ingredient_cache = ingredient_cache.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut data = context_cloned.deref().clone();
+            match ladle::ingredient_index(&context_cloned.settings.server_url, "").await {
+                Ok(ingredients) => {
+                    let set: HashSet<_> = ingredients.iter().cloned().collect();
+                    data.ingredient_cache = set.clone();
+                    // Make it available to child components
+                    context_cloned.set(data);
+                    // Store it on disk
+                    ingredient_cache.set(set);
                 }
-            });
-        },
-        state.update,
+                Err(error) => context_cloned
+                    .status
+                    .emit(Message::Error(error.to_string(), chrono::Utc::now())),
+            }
+        });
+    });
+
+    // On change of the 'update' field of the state, fetch and cache ingredients
+    let effect = update_ingredient_cache.clone();
+    use_effect_with_deps(
+        move |_| effect.emit(()),
+        context.settings.server_url.clone(),
     );
 
     // Callback to update settings to the value passed as an argument
-    let state_cloned = state.clone();
     let context_cloned = context.clone();
     let update_settings = Callback::from(move |settings: AppSettings| {
         let mut data = context_cloned.deref().clone();
@@ -133,10 +140,6 @@ pub fn app() -> Html {
         context_cloned.set(data);
 
         persistent_settings.set(settings);
-
-        let mut data = state_cloned.deref().clone();
-        data.update = data.update + 1;
-        state_cloned.set(data);
     });
 
     html! {
@@ -165,6 +168,7 @@ pub fn app() -> Html {
                     <Switch<Route>
                         render={Callback::from(move |switch: Route| {
                             let update_settings = update_settings.clone();
+                            let update_ingredient_cache = update_ingredient_cache.clone();
                             match switch {
                                 Route::ListRecipes => html! {
                                     <RecipeList/>
@@ -179,14 +183,14 @@ pub fn app() -> Html {
                                     <div class={"ingredient-main"}>
                                         <IngredientList />
                                         <IngredientView ingredient_id={Option::<String>::None}/>
-                                        <IngredientCreateButton />
+                                        <IngredientCreateButton ingredient_cache_refresh={update_ingredient_cache}/>
                                     </div>
                                 },
                                 Route::ShowIngredient { id } => html! {
                                     <div class={"ingredient-main"}>
                                         <IngredientList />
                                         <IngredientView ingredient_id={Some(id)}/>
-                                        <IngredientCreateButton />
+                                        <IngredientCreateButton ingredient_cache_refresh={update_ingredient_cache}/>
                                     </div>
                                 },
                                 Route::Settings => html! {

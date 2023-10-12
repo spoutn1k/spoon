@@ -10,17 +10,21 @@ static INGREDIENT_NAME_PROMPT: &str = "Ingredient name:";
 struct IngredientCreateState {}
 
 #[derive(Properties, PartialEq, Clone)]
-pub struct IngredientCreateProps {}
+pub struct IngredientCreateProps {
+    pub ingredient_cache_refresh: Callback<()>,
+}
 
 #[function_component(IngredientCreateButton)]
-pub fn ingredient_create_button(_props: &IngredientCreateProps) -> Html {
+pub fn ingredient_create_button(props: &IngredientCreateProps) -> Html {
     let _state = use_state(IngredientCreateState::default);
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
     let navigator = use_navigator().unwrap();
 
     let context_cloned = context.clone();
+    let props_cloned = props.clone();
     let name_submit = Callback::from(move |name: String| {
         let context_cloned = context_cloned.clone();
+        let props_cloned = props_cloned.clone();
         let nc = navigator.clone();
         wasm_bindgen_futures::spawn_local(async move {
             match ladle::ingredient_create(
@@ -33,7 +37,10 @@ pub fn ingredient_create_button(_props: &IngredientCreateProps) -> Html {
             )
             .await
             {
-                Ok(ingredient) => nc.push(&Route::ShowIngredient { id: ingredient.id }),
+                Ok(ingredient) => {
+                    nc.push(&Route::ShowIngredient { id: ingredient.id });
+                    props_cloned.ingredient_cache_refresh.emit(());
+                }
                 Err(error) => context_cloned
                     .status
                     .emit(Message::Error(error.to_string(), chrono::Utc::now())),

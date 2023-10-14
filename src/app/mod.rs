@@ -3,9 +3,10 @@ mod recipes;
 mod settings;
 mod status_bar;
 
-use ingredients::create::IngredientCreateButton;
-use ingredients::list::IngredientList;
-use ingredients::show::IngredientView;
+use ingredients::{
+    create::IngredientCreateButton, edit::IngredientEdit, list::IngredientList,
+    show::IngredientView,
+};
 use ladle::models::IngredientIndex;
 use recipes::list::RecipeList;
 use recipes::recipe_edit::RecipeEditWindow;
@@ -30,6 +31,8 @@ enum Route {
     ListIngredients,
     #[at("/ingredients/:id")]
     ShowIngredient { id: String },
+    #[at("/ingredients/:id/edit")]
+    EditIngredient { id: String },
     #[at("/settings")]
     Settings,
     #[not_found]
@@ -193,6 +196,12 @@ pub fn app() -> Html {
                                         <IngredientList />
                                         <IngredientView ingredient_id={Some(id)}/>
                                         <IngredientCreateButton ingredient_cache_refresh={update_ingredient_cache}/>
+                                    </div>
+                                },
+                                Route::EditIngredient { id } => html! {
+                                    <div class={"ingredient-main"}>
+                                        <IngredientList />
+                                        <IngredientEdit ingredient_id={Some(id)}/>
                                     </div>
                                 },
                                 Route::Settings => html! {

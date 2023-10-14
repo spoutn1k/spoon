@@ -6,6 +6,47 @@ use std::rc::Rc;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
+#[derive(Debug)]
+enum Classifications {
+    Vegan,
+    Vegetarian,
+    DairyFree,
+    GlutenFree,
+}
+
+fn get_classifications(data: &ladle::models::Classifications) -> Vec<Classifications> {
+    let mut out = vec![];
+
+    if !data.dairy {
+        out.push(Classifications::DairyFree);
+    }
+
+    if !data.gluten {
+        out.push(Classifications::GlutenFree);
+    }
+
+    if !data.meat {
+        out.push(Classifications::Vegetarian);
+    }
+
+    if !data.meat && !data.animal_product && !data.dairy {
+        out.push(Classifications::Vegan);
+    }
+
+    out
+}
+
+fn render_classifications(list: &Vec<Classifications>) -> Html {
+    let items = list
+        .iter()
+        .map(|class| html! {<li>{format!("{:?}", class)}</li>})
+        .collect::<Html>();
+
+    html! {
+        <ul class="classifications">{items}</ul>
+    }
+}
+
 fn parse_text(value: &str) -> String {
     let options = Options::empty();
 
@@ -109,6 +150,9 @@ fn render(data: &RecipeWindowState) -> Html {
     let main_recipe = data.main_recipe.as_ref().unwrap();
     let ordered_items = get_recipe_order(&data);
 
+    let classifications =
+        render_classifications(&get_classifications(&main_recipe.classifications));
+
     let requirements = ordered_items
         .iter()
         .map(render_requirements)
@@ -138,6 +182,7 @@ fn render(data: &RecipeWindowState) -> Html {
                 <div class="recipe-author">{main_recipe.author.as_str()}</div>
             </div>
             <ul class="recipe-tags">{tags}</ul>
+            {classifications}
             <h2 class="recipe-ingredients-label">{"Ingrédients"}</h2>
             <ul class="recipe-ingredients">{requirements}</ul>
             <h2 class="recipe-directions-label">{"Préparation"}</h2>

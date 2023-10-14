@@ -90,17 +90,17 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
         .collect::<Html>();
 
     html! {
-        <li key={"requirement_add"}>
-            <select onchange={on_ingredient_select}>
+        <tr key={"requirement_add"}>
+            <td><select onchange={on_ingredient_select}>
                 <option hidden={true} disabled={true} selected={true}>{"Ingredients"}</option>
                 {options}
-            </select>
-            <input
+            </select></td>
+            <td><input
                 type="text"
                 value={(*state).quantity_buffer.clone()}
                 onchange={on_quantity_edit}
-            />
-            <button onclick={create_requirement}>{"Add"}</button>
-        </li>
+            /></td>
+            <td><button onclick={create_requirement}>{"Add"}</button></td>
+        </tr>
     }
 }

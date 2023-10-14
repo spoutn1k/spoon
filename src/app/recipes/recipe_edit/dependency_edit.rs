@@ -38,9 +38,9 @@ pub fn dependency_edit_item(props: &DependencyEditItemProps) -> Html {
     });
 
     html! {
-        <li key={props.dependency.recipe.id.as_str()}>
-            <span>{props.dependency.recipe.name.as_str()}</span>
-            <button onclick={on_dependency_delete}>{"Delete"}</button>
-        </li>
+        <tr key={props.dependency.recipe.id.as_str()}>
+            <td>{props.dependency.recipe.name.as_str()}</td>
+            <td><button onclick={on_dependency_delete}>{"Delete"}</button></td>
+        </tr>
     }
 }

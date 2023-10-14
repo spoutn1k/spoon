@@ -98,15 +98,15 @@ pub fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
     });
 
     html! {
-        <li key={props.requirement.ingredient.id.as_str()}>
-            <span>{props.requirement.ingredient.name.as_str()}</span>
-            <input
+        <tr key={props.requirement.ingredient.id.as_str()}>
+            <td>{props.requirement.ingredient.name.as_str()}</td>
+            <td><input
                 type="text"
                 value={state.quantity_buffer.clone()}
                 onchange={on_quantity_edit}
-            />
-            <button onclick={update_requirement}>{"Update"}</button>
-            <button onclick={delete_requirement}>{"Delete"}</button>
-        </li>
+            /></td>
+            <td><button onclick={update_requirement}>{"Update"}</button></td>
+            <td><button onclick={delete_requirement}>{"Delete"}</button></td>
+        </tr>
     }
 }

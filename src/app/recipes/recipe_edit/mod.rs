@@ -288,18 +288,18 @@ pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
                         />
                         <button onclick={update_author}>{"Update"}</button>
                     </div>
-                    <ul>
+                    <table>
                         {dependencies}
                         <DependencyAddItem
                             refresh={refresh_recipe.clone()}
                         />
-                    </ul>
-                    <ul>
+                    </table>
+                    <table>
                         {requirements}
                         <RequirementAddItem
                             refresh={refresh_recipe.clone()}
                         />
-                    </ul>
+                    </table>
                     <textarea
                         class="recipe-directions edit"
                         onchange={on_directions_edit}

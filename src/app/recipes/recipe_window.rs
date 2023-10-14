@@ -28,17 +28,18 @@ fn render_requirements(element: &RecipeElement) -> Html {
         RecipeElement::DependencyRecipe(_, recipe) => recipe,
     };
 
-    let requirements = recipe.requirements
-    .iter()
-    .map(|requirement| {
-        html! {
-            <li class="requirement" key={requirement.ingredient.id.clone()}>
-                <span class="requirement-ingredient">{requirement.ingredient.name.clone()}</span>
-                <span class="requirement-quantity">{requirement.quantity.clone()}</span>
-            </li>
-        }
-    })
-    .collect::<Html>();
+    let requirements = recipe
+        .requirements
+        .iter()
+        .map(|requirement| {
+            html! {
+                <tr class="requirement" key={requirement.ingredient.id.clone()}>
+                    <td class="requirement-ingredient">{requirement.ingredient.name.clone()}</td>
+                    <td class="requirement-quantity">{requirement.quantity.clone()}</td>
+                </tr>
+            }
+        })
+        .collect::<Html>();
 
     let subtitle = match element {
         RecipeElement::MainRecipe(recipe) => {
@@ -47,7 +48,7 @@ fn render_requirements(element: &RecipeElement) -> Html {
         RecipeElement::DependencyRecipe(dependency, recipe) if dependency.optional => {
             html! {<h3 class="dependency-subtitle">{format!("{} - Optional", recipe.name.clone())}</h3>}
         }
-        RecipeElement::DependencyRecipe(dependency, recipe) => {
+        RecipeElement::DependencyRecipe(_, recipe) => {
             html! {<h3 class="dependency-subtitle">{recipe.name.clone()}</h3>}
         }
     };
@@ -55,7 +56,7 @@ fn render_requirements(element: &RecipeElement) -> Html {
     html! {
         <li class="dependency-requirement" key={recipe.id.as_str()}>
             {subtitle}
-            <ul class="requirement-list">{requirements}</ul>
+            <table class="requirement-list">{requirements}</table>
         </li>
     }
 }

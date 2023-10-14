@@ -97,12 +97,12 @@ pub fn dependency_add_item(props: &DependencyAddItemProps) -> Html {
         .collect::<Html>();
 
     html! {
-        <li key={"dependency_add"}>
-            <select onchange={on_dependency_select}>
+        <tr key={"dependency_add"}>
+            <td><select onchange={on_dependency_select}>
                 <option hidden={true} disabled={true} selected={true}>{"Recipes"}</option>
                 {options}
-            </select>
-            <button onclick={create_dependency}>{"Add"}</button>
-        </li>
+            </select></td>
+            <td><button onclick={create_dependency}>{"Add"}</button></td>
+        </tr>
     }
 }

@@ -1,7 +1,7 @@
 use crate::app::{set_title, status_bar::Message, AppContext, Route};
 use futures::future::join_all;
 use pulldown_cmark::{html::push_html, Options, Parser};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -16,29 +16,56 @@ fn parse_text(value: &str) -> String {
     parsed_text
 }
 
-fn render_requirements(data: &ladle::models::Recipe) -> Html {
-    let requirements = data
-        .requirements
-        .iter()
-        .map(|requirement| {
-            html! {
-                <li class="requirement" key={requirement.ingredient.id.clone()}>
-                    <span class="requirement-ingredient">{requirement.ingredient.name.clone()}</span>
-                    <span class="requirement-quantity">{requirement.quantity.clone()}</span>
-                </li>
-            }
-        })
-        .collect::<Html>();
+#[derive(Clone)]
+enum RecipeElement<'a> {
+    MainRecipe(&'a ladle::models::Recipe),
+    DependencyRecipe(&'a ladle::models::Dependency, &'a ladle::models::Recipe),
+}
+
+fn render_requirements(element: &RecipeElement) -> Html {
+    let recipe = match element {
+        RecipeElement::MainRecipe(recipe) => recipe,
+        RecipeElement::DependencyRecipe(_, recipe) => recipe,
+    };
+
+    let requirements = recipe.requirements
+    .iter()
+    .map(|requirement| {
+        html! {
+            <li class="requirement" key={requirement.ingredient.id.clone()}>
+                <span class="requirement-ingredient">{requirement.ingredient.name.clone()}</span>
+                <span class="requirement-quantity">{requirement.quantity.clone()}</span>
+            </li>
+        }
+    })
+    .collect::<Html>();
+
+    let subtitle = match element {
+        RecipeElement::MainRecipe(recipe) => {
+            html! {<h3 class="dependency-subtitle">{recipe.name.clone()}</h3>}
+        }
+        RecipeElement::DependencyRecipe(dependency, recipe) if dependency.optional => {
+            html! {<h3 class="dependency-subtitle">{format!("{} - Optional", recipe.name.clone())}</h3>}
+        }
+        RecipeElement::DependencyRecipe(dependency, recipe) => {
+            html! {<h3 class="dependency-subtitle">{recipe.name.clone()}</h3>}
+        }
+    };
 
     html! {
-        <li class="dependency-requirement" key={data.id.as_str()}>
-            <h3 class="dependency-subtitle">{data.name.clone()}</h3>
+        <li class="dependency-requirement" key={recipe.id.as_str()}>
+            {subtitle}
             <ul class="requirement-list">{requirements}</ul>
         </li>
     }
 }
 
-fn render_directions(data: &ladle::models::Recipe) -> Html {
+fn render_directions(element: &RecipeElement) -> Html {
+    let data = match element {
+        RecipeElement::MainRecipe(recipe) => recipe,
+        RecipeElement::DependencyRecipe(_, recipe) => recipe,
+    };
+
     let parse_html = parse_text(&data.directions);
     let parsed = Html::from_html_unchecked(AttrValue::from(parse_html));
 
@@ -50,21 +77,45 @@ fn render_directions(data: &ladle::models::Recipe) -> Html {
     }
 }
 
+fn get_recipe_order<'a>(data: &'a RecipeWindowState) -> Vec<RecipeElement> {
+    let mut elements = vec![];
+    let mut dependency_fifo: VecDeque<&ladle::models::Dependency> = match &data.main_recipe {
+        Some(recipe) => {
+            elements.push(RecipeElement::MainRecipe(&recipe));
+            VecDeque::from_iter(recipe.dependencies.iter())
+        }
+        None => VecDeque::default(),
+    };
+
+    while let Some(dependency) = dependency_fifo.pop_front() {
+        match data.dependencies.get(&dependency.recipe.id) {
+            Some(recipe) => {
+                elements.push(RecipeElement::DependencyRecipe(dependency, recipe));
+                dependency_fifo.extend(recipe.dependencies.iter())
+            }
+            None => (),
+        }
+    }
+
+    elements.iter().rev().cloned().collect()
+}
+
 fn render(data: &RecipeWindowState) -> Html {
     if data.main_recipe.is_none() {
         return html! {};
     }
 
-    let main_recipe = data.main_recipe.clone().unwrap();
-    let requirements = data
-        .dependencies
+    let main_recipe = data.main_recipe.as_ref().unwrap();
+    let ordered_items = get_recipe_order(&data);
+
+    let requirements = ordered_items
         .iter()
-        .map(|(_, data)| render_requirements(data))
+        .map(render_requirements)
         .collect::<Html>();
-    let directions = data
-        .dependencies
+
+    let directions = ordered_items
         .iter()
-        .map(|(_, data)| render_directions(data))
+        .map(render_directions)
         .collect::<Html>();
 
     let tags = main_recipe
@@ -87,9 +138,9 @@ fn render(data: &RecipeWindowState) -> Html {
             </div>
             <ul class="recipe-tags">{tags}</ul>
             <h2 class="recipe-ingredients-label">{"Ingrédients"}</h2>
-            <ul class="recipe-ingredients">{render_requirements(&main_recipe)}{requirements}</ul>
+            <ul class="recipe-ingredients">{requirements}</ul>
             <h2 class="recipe-directions-label">{"Préparation"}</h2>
-            <div class="recipe-directions">{render_directions(&main_recipe)}{directions}</div>
+            <div class="recipe-directions">{directions}</div>
             </>
     }
 }

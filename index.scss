@@ -109,6 +109,16 @@ main {
     color: #00000000;
 }
 
+.status {
+    @extend %status;
+    background-color: #333;
+}
+
+.status.success {
+    @extend %status;
+    background-color: #5f9;
+}
+
 .status.info {
     @extend %status;
     background-color: #f90;

@@ -5,6 +5,7 @@ use yew_hooks::prelude::*;
 #[derive(PartialEq, Clone, Debug)]
 pub enum Message {
     None,
+    Success(String, DateTime<Utc>),
     Info(String, DateTime<Utc>),
     Error(String, DateTime<Utc>),
 }
@@ -29,7 +30,7 @@ pub fn status_bar(props: &StatusBarProps) -> Html {
         use_effect_with_deps(
             move |_| {
                 match props_cloned.current {
-                    Message::Error(_, _) | Message::Info(_, _) => {
+                    Message::Error(_, _) | Message::Info(_, _) | Message::Success(_, _) => {
                         state.set(StatusBarState { shown: true })
                     }
                     _ => (),
@@ -60,6 +61,9 @@ pub fn status_bar(props: &StatusBarProps) -> Html {
 
     match &props.current {
         Message::None => html! {},
+        Message::Success(message, _) => {
+            html! {<div class={format!("{} success", class)}>{message.as_str()}</div>}
+        }
         Message::Info(message, _) => {
             html! {<div class={format!("{} info", class)}>{message.as_str()}</div>}
         }

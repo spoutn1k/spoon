@@ -195,13 +195,18 @@ pub fn app() -> Html {
                                     <div class={"ingredient-main"}>
                                         <IngredientList />
                                         <IngredientView ingredient_id={Some(id)}/>
-                                        <IngredientCreateButton ingredient_cache_refresh={update_ingredient_cache}/>
+                                        <IngredientCreateButton
+                                            ingredient_cache_refresh={update_ingredient_cache}
+                                        />
                                     </div>
                                 },
                                 Route::EditIngredient { id } => html! {
                                     <div class={"ingredient-main"}>
                                         <IngredientList />
-                                        <IngredientEdit ingredient_id={Some(id)}/>
+                                        <IngredientEdit
+                                            ingredient_id={Some(id)}
+                                            ingredient_cache_refresh={update_ingredient_cache}
+                                        />
                                     </div>
                                 },
                                 Route::Settings => html! {

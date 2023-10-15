@@ -8,6 +8,7 @@ use yew_router::prelude::*;
 #[derive(Properties, PartialEq, Clone)]
 pub struct IngredientEditProps {
     pub ingredient_id: Option<String>,
+    pub ingredient_cache_refresh: Callback<()>,
 }
 
 enum IngredientEditActions {
@@ -131,10 +132,12 @@ pub fn ingredient_edit_window(props: &IngredientEditProps) -> Html {
     });
 
     let state_cloned = state.clone();
+    let props_cloned = props.clone();
     let context_cloned = context.clone();
     let nc = navigator.clone();
     let on_delete_clicked = Callback::from(move |_| {
         let state_cloned = state_cloned.clone();
+        let props_cloned = props_cloned.clone();
         let context_cloned = context_cloned.clone();
         let nc = nc.clone();
 
@@ -155,7 +158,10 @@ pub fn ingredient_edit_window(props: &IngredientEditProps) -> Html {
                 match ladle::ingredient_delete(context_cloned.settings.server_url.as_str(), &ing.id)
                     .await
                 {
-                    Ok(_) => nc.push(&Route::ListIngredients),
+                    Ok(_) => {
+                        props_cloned.ingredient_cache_refresh.emit(());
+                        nc.push(&Route::ListIngredients);
+                    }
                     Err(message) => context_cloned
                         .status
                         .emit(Message::Error(message.to_string(), chrono::Utc::now())),

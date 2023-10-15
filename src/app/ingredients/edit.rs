@@ -1,13 +1,9 @@
-use crate::app::status_bar::Message;
-use crate::app::AppContext;
-use std::ops::Deref;
+use crate::app::{status_bar::Message, AppContext, Route};
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
 use yew::prelude::*;
 use yew_router::prelude::*;
-
-use log::warn;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct IngredientEditProps {
@@ -74,6 +70,7 @@ impl Reducible for IngredientEditState {
 pub fn ingredient_edit_window(props: &IngredientEditProps) -> Html {
     let state = use_reducer(IngredientEditState::default);
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
+    let navigator = use_navigator().unwrap();
 
     let state_cloned = state.clone();
     let context_cloned = context.clone();
@@ -125,6 +122,40 @@ pub fn ingredient_edit_window(props: &IngredientEditProps) -> Html {
                         String::from("Ingredient updated"),
                         chrono::Utc::now(),
                     )),
+                    Err(message) => context_cloned
+                        .status
+                        .emit(Message::Error(message.to_string(), chrono::Utc::now())),
+                }
+            }
+        });
+    });
+
+    let state_cloned = state.clone();
+    let context_cloned = context.clone();
+    let nc = navigator.clone();
+    let on_delete_clicked = Callback::from(move |_| {
+        let state_cloned = state_cloned.clone();
+        let context_cloned = context_cloned.clone();
+        let nc = nc.clone();
+
+        let confirm = match web_sys::window()
+            .unwrap()
+            .confirm_with_message(&format!("Delete ingredient ?"))
+        {
+            Ok(true) => true,
+            _ => false,
+        };
+
+        wasm_bindgen_futures::spawn_local(async move {
+            if !confirm {
+                return;
+            }
+
+            if let Some(ing) = &state_cloned.original_ingredient {
+                match ladle::ingredient_delete(context_cloned.settings.server_url.as_str(), &ing.id)
+                    .await
+                {
+                    Ok(_) => nc.push(&Route::ListIngredients),
                     Err(message) => context_cloned
                         .status
                         .emit(Message::Error(message.to_string(), chrono::Utc::now())),
@@ -222,6 +253,8 @@ pub fn ingredient_edit_window(props: &IngredientEditProps) -> Html {
             </table>
             <button onclick={on_reset_clicked}>{"Reset"}</button>
             <button onclick={on_update_clicked}>{"Update"}</button>
+            <button onclick={on_delete_clicked}>{"Delete"}</button>
+            <button onclick={Callback::from(move |_| {navigator.back();})}>{"Close"}</button>
         </div>
     </div>
     }

@@ -233,16 +233,18 @@ pub fn recipe_list(_: &RecipeListProps) -> Html {
         .collect::<Html>();
 
     html! {
-         <div class="recipe-selection">
-             <SearchPane
-                 labels={state.labels.clone()}
-                 {change_pattern}
-                 selected_labels={parameters.labels.iter().cloned().collect::<HashSet<_>>()}
-             />
-             <ul class="recipe-index">
-                 {items}
-             </ul>
-            <RecipeCreateButton />
-         </div>
+        <div class="recipe-selection">
+        <SearchPane
+            labels={state.labels.clone()}
+            {change_pattern}
+            selected_labels={parameters.labels.iter().cloned().collect::<HashSet<_>>()}
+            />
+            <ul class="recipe-index">
+                {items}
+            </ul>
+            <div class={"options"}>
+                <RecipeCreateButton />
+            </div>
+        </div>
     }
 }

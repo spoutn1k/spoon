@@ -257,11 +257,36 @@ pub fn ingredient_edit_window(props: &IngredientEditProps) -> Html {
                     </td>
                 </tr>
             </table>
-            <button onclick={on_reset_clicked}>{"Reset"}</button>
-            <button onclick={on_update_clicked}>{"Update"}</button>
-            <button onclick={on_delete_clicked}>{"Delete"}</button>
-            <button onclick={Callback::from(move |_| {navigator.back();})}>{"Close"}</button>
+            <div class={"options"}>
+                <button onclick={on_reset_clicked}>{"Reset"}</button>
+                <button onclick={on_update_clicked}>{"Update"}</button>
+                <button onclick={on_delete_clicked}>{"Delete"}</button>
+                <button onclick={Callback::from(move |_| {navigator.back();})}>{"Close"}</button>
+            </div>
         </div>
     </div>
+    }
+}
+
+#[derive(Properties, PartialEq, Clone)]
+pub struct IngredientEditButtonProps {
+    pub ingredient_id: String,
+}
+
+#[function_component(IngredientEditButton)]
+pub fn ingredient_edit_button(props: &IngredientEditButtonProps) -> Html {
+    let navigator = use_navigator().unwrap();
+
+    let props_cloned = props.clone();
+    html! {
+        <button
+            class="edit-item edit-ingredient"
+            onclick={
+                Callback::from(move |_| {
+                    navigator.push(&Route::EditIngredient {id: props_cloned.ingredient_id.clone()});
+                })
+            }>
+            {"Edit"}
+        </button>
     }
 }

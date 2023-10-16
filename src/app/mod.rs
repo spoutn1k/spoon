@@ -4,7 +4,9 @@ mod settings;
 mod status_bar;
 
 use ingredients::{
-    create::IngredientCreateButton, edit::IngredientEdit, list::IngredientList,
+    create::IngredientCreateButton,
+    edit::{IngredientEdit, IngredientEditButton},
+    list::IngredientList,
     show::IngredientView,
 };
 use ladle::models::IngredientIndex;
@@ -187,17 +189,28 @@ pub fn app() -> Html {
                                 Route::ListIngredients => html! {
                                     <div class={"ingredient-main"}>
                                         <IngredientList />
-                                        <IngredientView ingredient_id={Option::<String>::None}/>
-                                        <IngredientCreateButton ingredient_cache_refresh={update_ingredient_cache}/>
+                                        <IngredientView
+                                            ingredient_id={Option::<String>::None}
+                                        />
+                                        <div class={"options"}>
+                                            <IngredientCreateButton
+                                                ingredient_cache_refresh={update_ingredient_cache}
+                                            />
+                                        </div>
                                     </div>
                                 },
                                 Route::ShowIngredient { id } => html! {
                                     <div class={"ingredient-main"}>
                                         <IngredientList />
-                                        <IngredientView ingredient_id={Some(id)}/>
-                                        <IngredientCreateButton
-                                            ingredient_cache_refresh={update_ingredient_cache}
-                                        />
+                                        <IngredientView ingredient_id={Some(id.clone())}/>
+                                        <div class={"options"}>
+                                            <IngredientCreateButton
+                                                ingredient_cache_refresh={update_ingredient_cache}
+                                            />
+                                            <IngredientEditButton
+                                                ingredient_id={id}
+                                            />
+                                        </div>
                                     </div>
                                 },
                                 Route::EditIngredient { id } => html! {
@@ -210,7 +223,10 @@ pub fn app() -> Html {
                                     </div>
                                 },
                                 Route::Settings => html! {
-                                    <Settings current={context_cloned.settings.clone()} update_settings={update_settings}/>
+                                    <Settings
+                                        current={context_cloned.settings.clone()}
+                                        update_settings={update_settings}
+                                        />
                                 },
                                 Route::NotFound => html! {"404"},
                             }

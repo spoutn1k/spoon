@@ -1,4 +1,4 @@
-use crate::app::recipes::recipe_edit::EditionContext;
+use crate::app::recipes::edit::EditionContext;
 use crate::app::status_bar::Message;
 use crate::app::AppContext;
 use ladle::models::IngredientIndex;

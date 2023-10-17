@@ -10,9 +10,9 @@ use ingredients::{
     show::IngredientView,
 };
 use ladle::models::IngredientIndex;
+use recipes::edit::RecipeEditWindow;
 use recipes::list::RecipeList;
-use recipes::recipe_edit::RecipeEditWindow;
-use recipes::recipe_window::RecipeWindow;
+use recipes::window::RecipeWindow;
 use settings::{AppSettings, Settings};
 use status_bar::{Message, StatusBar};
 use std::collections::HashSet;

@@ -37,7 +37,7 @@ pub struct RecipeEditWindowState {
 }
 
 #[function_component(RecipeEditWindow)]
-pub fn recipe_edit_window(props: &RecipeEditWindowProps) -> Html {
+pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
     let navigator = use_navigator().unwrap();
 
     let state = use_state(|| RecipeEditWindowState {

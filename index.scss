@@ -55,11 +55,11 @@ main {
     .left {
         display: flex;
         gap: .4rem;
+    }
 
-        a {
-            color: unset;
-            text-decoration: none;
-        }
+    a {
+        color: unset;
+        text-decoration: none;
     }
 }
 

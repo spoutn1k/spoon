@@ -155,9 +155,6 @@ pub fn app() -> Html {
                 <BrowserRouter>
                     <div class="header">
                         <div class="left">
-                            <Link<Route> to={Route::Settings}>
-                                {"Settings"}
-                            </Link<Route>>
                             <Link<Route> to={Route::ListRecipes}>
                                 {"Recipes"}
                             </Link<Route>>
@@ -169,6 +166,9 @@ pub fn app() -> Html {
                             {format!("spoon v{}", env!("CARGO_PKG_VERSION"))}
                         </div>
                         <div class="right">
+                            <Link<Route> to={Route::Settings}>
+                                {"Settings"}
+                            </Link<Route>>
                         </div>
                     </div>
                     <Switch<Route>

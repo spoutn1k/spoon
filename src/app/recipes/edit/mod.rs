@@ -15,8 +15,7 @@ use tag_edit::TagEditItem;
 
 use context::EditionContext;
 
-use crate::app::status_bar::Message;
-use crate::app::AppContext;
+use crate::app::{status_bar::Message, AppContext, Route};
 use std::ops::Deref;
 use wasm_bindgen::JsCast;
 use web_sys::{EventTarget, HtmlInputElement};
@@ -195,32 +194,40 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
         }
     });
 
-    let context_cloned = context.clone();
     let state_cloned = state.clone();
-    let on_delete: Callback<()> = Callback::from(move |_| {
-        let context_cloned = context_cloned.clone();
+    let context_cloned = context.clone();
+    let nc = navigator.clone();
+    let on_delete_clicked = Callback::from(move |_| {
         let state_cloned = state_cloned.clone();
+        let context_cloned = context_cloned.clone();
+        let nc = nc.clone();
 
-        if let Some(_recipe) = state_cloned.recipe.clone() {
-            wasm_bindgen_futures::spawn_local(async move {
-                /*
-                if let Err(message) =
-                    ladle::recipe_delete(context.server.as_str(), &recipe.id).await
+        let confirm = match web_sys::window()
+            .unwrap()
+            .confirm_with_message(&format!("Delete recipe ?"))
+        {
+            Ok(true) => true,
+            _ => false,
+        };
+
+        wasm_bindgen_futures::spawn_local(async move {
+            if !confirm {
+                return;
+            }
+
+            if let Some(recipe) = &state_cloned.recipe {
+                match ladle::recipe_delete(context_cloned.settings.server_url.as_str(), &recipe.id)
+                    .await
                 {
-                    props_cloned
+                    Ok(_) => {
+                        nc.push(&Route::ListRecipes);
+                    }
+                    Err(message) => context_cloned
                         .status
-                        .emit(Message::Error(message.to_string(), chrono::Utc::now()))
+                        .emit(Message::Error(message.to_string(), chrono::Utc::now())),
                 }
-
-                props_cloned.on_delete.emit(());
-                */
-
-                context_cloned.status.emit(Message::Info(
-                    String::from("Recipe deletion disabled"),
-                    chrono::Utc::now(),
-                ));
-            });
-        }
+            }
+        });
     });
 
     let refresh_recipe_cloned = refresh_recipe.clone();
@@ -313,7 +320,7 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
                         />
                     </ul>
                     <div class="options">
-                        <button onclick={move |_| {on_delete.emit(())}}>{"Delete"}</button>
+                        <button onclick={on_delete_clicked}>{"Delete"}</button>
                         <button
                             class={classes!("recipe-deselect")}
                             onclick={Callback::from(move |_| {

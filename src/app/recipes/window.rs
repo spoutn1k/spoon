@@ -77,6 +77,9 @@ fn render_requirements(element: &RecipeElement) -> Html {
                 <tr class="requirement" key={requirement.ingredient.id.clone()}>
                     <td class="requirement-ingredient">{requirement.ingredient.name.clone()}</td>
                     <td class="requirement-quantity">{requirement.quantity.clone()}</td>
+                    <td class="requirement-optional"> {
+                        if requirement.optional {"Optional"} else {""}
+                    } </td>
                 </tr>
             }
         })

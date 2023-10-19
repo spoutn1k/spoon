@@ -20,7 +20,7 @@ use futures::future::join_all;
 use std::collections::BTreeSet;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
-use web_sys::{EventTarget, HtmlInputElement};
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -255,22 +255,31 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
 
     let state_cloned = state.clone();
     let on_name_edit = Callback::from(move |e: Event| {
-        let target: EventTarget = e.target().expect("");
-        let name = target.unchecked_into::<HtmlInputElement>().value();
+        let name = e
+            .target()
+            .expect("")
+            .unchecked_into::<HtmlInputElement>()
+            .value();
         state_cloned.dispatch(RecipeEditWindowActions::UpdateName(name));
     });
 
     let state_cloned = state.clone();
     let on_author_edit = Callback::from(move |e: Event| {
-        let target: EventTarget = e.target().expect("");
-        let author = target.unchecked_into::<HtmlInputElement>().value();
+        let author = e
+            .target()
+            .expect("")
+            .unchecked_into::<HtmlInputElement>()
+            .value();
         state_cloned.dispatch(RecipeEditWindowActions::UpdateAuthor(author));
     });
 
     let state_cloned = state.clone();
     let on_directions_edit = Callback::from(move |e: Event| {
-        let target: EventTarget = e.target().expect("");
-        let directions = target.unchecked_into::<HtmlInputElement>().value();
+        let directions = e
+            .target()
+            .expect("")
+            .unchecked_into::<HtmlInputElement>()
+            .value();
         state_cloned.dispatch(RecipeEditWindowActions::UpdateDirections(directions));
     });
 
@@ -321,6 +330,15 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
         })
         .collect::<Html>();
 
+    let state_cloned = state.clone();
+    let create_requirement = Callback::from(
+        move |(ingredient, quantity, optional): (ladle::models::IngredientIndex, String, bool)| {
+            state_cloned.dispatch(RecipeEditWindowActions::AddRequirement(
+                ingredient, quantity, optional,
+            ));
+        },
+    );
+
     let tags = recipe
         .tags
         .iter()
@@ -335,7 +353,7 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
         .collect::<Html>();
 
     let nc = navigator.clone();
-
+    let state_cloned = state.clone();
     html! {
         <div class="recipe-display edit">
             <ContextProvider<EditionContext> context={(*edit_context).clone()}>
@@ -362,7 +380,7 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
                 <table>
                     {requirements}
                     <RequirementAddItem
-                        refresh={refresh_recipe.clone()}
+                        create_requirement={create_requirement}
                     />
                 </table>
                 <textarea

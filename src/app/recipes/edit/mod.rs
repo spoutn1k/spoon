@@ -76,12 +76,20 @@ impl Reducible for RecipeEditWindowState {
             }
             RecipeEditWindowActions::AddRequirement(ingredient, quantity, optional) => {
                 let new_requirement = ladle::models::Requirement {
-                    ingredient,
+                    ingredient: ingredient.clone(),
                     quantity,
                     optional,
                 };
 
-                new_state.new_recipe.requirements.insert(new_requirement);
+                if self
+                    .new_recipe
+                    .requirements
+                    .iter()
+                    .find(|r| &r.ingredient == &ingredient)
+                    .is_none()
+                {
+                    new_state.new_recipe.requirements.insert(new_requirement);
+                }
             }
             RecipeEditWindowActions::UpdateRequirement(req, quantity, optional) => {
                 let new_requirement = ladle::models::Requirement {

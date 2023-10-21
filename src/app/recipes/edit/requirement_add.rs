@@ -9,17 +9,27 @@ use yew::prelude::*;
 #[derive(Properties, PartialEq, Clone)]
 pub struct RequirementAddItemProps {
     pub create_requirement: Callback<(ladle::models::IngredientIndex, String, bool), ()>,
+    pub ingredient_blacklist: Callback<(), Vec<String>>,
+}
+
+#[derive(PartialEq, Clone, Default)]
+enum RequirementAddItemMode {
+    #[default]
+    Collapsed,
+    Open,
 }
 
 enum RequirementAddItemAction {
     SetIngredient(ladle::models::IngredientIndex),
     SetQuantity(String),
     ToggleOptional,
-    Reset,
+    Close,
+    Open,
 }
 
 #[derive(PartialEq, Clone, Default)]
 struct RequirementAddItemState {
+    mode: RequirementAddItemMode,
     selected_ingredient: Option<ladle::models::IngredientIndex>,
     quantity_buffer: String,
     optional: bool,
@@ -37,7 +47,8 @@ impl Reducible for RequirementAddItemState {
             }
             RequirementAddItemAction::SetQuantity(qt) => new_state.quantity_buffer = qt,
             RequirementAddItemAction::ToggleOptional => new_state.optional = !new_state.optional,
-            RequirementAddItemAction::Reset => new_state = RequirementAddItemState::default(),
+            RequirementAddItemAction::Close => new_state = RequirementAddItemState::default(),
+            RequirementAddItemAction::Open => new_state.mode = RequirementAddItemMode::Open,
         }
 
         new_state.into()
@@ -92,11 +103,17 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
                 state_cloned.optional,
             ));
 
-            state_cloned.dispatch(RequirementAddItemAction::Reset);
+            state_cloned.dispatch(RequirementAddItemAction::Close);
         }
     });
 
-    let mut options: Vec<IngredientIndex> = context.ingredient_cache.iter().cloned().collect();
+    let blacklist = props.ingredient_blacklist.emit(());
+    let mut options: Vec<IngredientIndex> = context
+        .ingredient_cache
+        .iter()
+        .filter(|idx| !blacklist.contains(&idx.id))
+        .cloned()
+        .collect();
     options.sort_by(|lhs, rhs| unidecode(&lhs.name).cmp(&unidecode(&rhs.name)));
     let options = options
         .iter()
@@ -110,48 +127,55 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
         })
         .collect::<Html>();
 
-    let selected_index = match &state.selected_ingredient.is_some() {
-        true => None,
-        false => Some(0.to_string()),
-    };
+    let state_cloned = state.clone();
+    let on_add_clicked = Callback::from(move |_| {
+        state_cloned.dispatch(RequirementAddItemAction::Open);
+    });
 
     let state_cloned = state.clone();
     html! {
-        <tr key={"requirement_add"}>
-            <td>
-                <select
-                    onchange={on_ingredient_select}>
-                    <option
-                        hidden={true}
-                        disabled={true}
-                        selected={state_cloned.selected_ingredient.is_none()}
-                        selectedIndex={selected_index}>
-                        {"Ingredient"}
-                    </option>
-                    {options}
-                </select>
-            </td>
-            <td>
-                <input
-                    type="text"
-                    value={state.quantity_buffer.clone()}
-                    onchange={on_quantity_edit}
-                />
-            </td>
-            <td>
-                <input
-                    type="checkbox"
-                    checked={state.optional}
-                    onclick={on_optional_clicked}
-                />
-            </td>
-            <td>
-                <button
-                    disabled={state_cloned.selected_ingredient.is_none()}
-                    onclick={create_requirement}>
-                    {"Add"}
-                </button>
-            </td>
-        </tr>
+        if state_cloned.mode == RequirementAddItemMode::Collapsed {
+            <button
+                onclick={on_add_clicked}>
+                {"Add ingredient"}
+            </button>
+        } else {
+            <tr key={"requirement_add"}>
+                <td>
+                    <select
+                        onchange={on_ingredient_select}>
+                        <option
+                            hidden=true
+                            disabled=true
+                            selected={state_cloned.selected_ingredient.is_none()}>
+                            {"Ingredient"}
+                        </option>
+                        {options}
+                    </select>
+                </td>
+                <td>
+                    <input
+                        type="text"
+                        placeholder="Quantity"
+                        value={state.quantity_buffer.clone()}
+                        onchange={on_quantity_edit}
+                    />
+                </td>
+                <td>
+                    <input
+                        type="checkbox"
+                        checked={state.optional}
+                        onclick={on_optional_clicked}
+                    />
+                </td>
+                <td>
+                    <button
+                        disabled={state_cloned.selected_ingredient.is_none()}
+                        onclick={create_requirement}>
+                        {"Add"}
+                    </button>
+                </td>
+            </tr>
+        }
     }
 }

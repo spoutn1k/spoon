@@ -291,6 +291,16 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
         state_cloned.dispatch(RecipeEditWindowActions::UpdateDirections(directions));
     });
 
+    let state_cloned = state.clone();
+    let ingredients_in_use = Callback::from(move |()| -> Vec<String> {
+        state_cloned
+            .new_recipe
+            .requirements
+            .iter()
+            .map(|r| r.ingredient.id.clone())
+            .collect()
+    });
+
     let refresh_recipe_cloned = refresh_recipe.clone();
     use_effect_with_deps(move |_| refresh_recipe_cloned.emit(()), props.clone());
 
@@ -389,6 +399,7 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
                     {requirements}
                     <RequirementAddItem
                         create_requirement={create_requirement}
+                        ingredient_blacklist={ingredients_in_use}
                     />
                 </table>
                 <textarea

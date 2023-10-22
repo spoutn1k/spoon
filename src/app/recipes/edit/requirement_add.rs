@@ -1,4 +1,4 @@
-use crate::app::AppContext;
+use crate::app::{status_bar::Message, AppContext};
 use ladle::models::IngredientIndex;
 use std::rc::Rc;
 use unidecode::unidecode;
@@ -10,6 +10,7 @@ use yew::prelude::*;
 pub struct RequirementAddItemProps {
     pub create_requirement: Callback<(ladle::models::IngredientIndex, String, bool), ()>,
     pub ingredient_blacklist: Callback<(), Vec<String>>,
+    pub ingredient_cache_refresh: Callback<()>,
 }
 
 #[derive(PartialEq, Clone, Default)]
@@ -62,12 +63,56 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
 
     let state_cloned = state.clone();
     let context_cloned = context.clone();
+    let props_cloned = props.clone();
+    let create_ingredient = Callback::from(move |name: String| {
+        let state_cloned = state_cloned.clone();
+        let context_cloned = context_cloned.clone();
+        let props_cloned = props_cloned.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            match ladle::ingredient_create(
+                context_cloned.settings.server_url.as_str(),
+                name.as_str(),
+                false,
+                false,
+                false,
+                false,
+            )
+            .await
+            {
+                Ok(ingredient) => {
+                    state_cloned
+                        .dispatch(RequirementAddItemAction::SetIngredient(ingredient.clone()));
+                    props_cloned.ingredient_cache_refresh.emit(());
+                }
+                Err(error) => context_cloned
+                    .status
+                    .emit(Message::Error(error.to_string(), chrono::Utc::now())),
+            }
+        });
+    });
+
+    let state_cloned = state.clone();
+    let context_cloned = context.clone();
     let on_ingredient_select = Callback::from(move |e: Event| {
         let selected_ingredient_id = e
             .target()
             .expect("")
             .unchecked_into::<HtmlInputElement>()
             .value();
+
+        if selected_ingredient_id == "new" {
+            match web_sys::window()
+                .unwrap()
+                .prompt_with_message("Ingredient name:")
+            {
+                Ok(Some(name)) => create_ingredient.emit(name),
+                Ok(None) => (),
+                Err(error) => context_cloned.status.emit(Message::Error(
+                    error.as_string().unwrap_or(String::default()),
+                    chrono::Utc::now(),
+                )),
+            }
+        }
 
         if let Some(ingredient) = context_cloned
             .ingredient_cache
@@ -115,11 +160,17 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
         .cloned()
         .collect();
     options.sort_by(|lhs, rhs| unidecode(&lhs.name).cmp(&unidecode(&rhs.name)));
-    let options = options
+    let option_html = options
         .iter()
         .map(|opt| {
+            let selected = match &state.selected_ingredient {
+                Some(idx) => &idx == &opt,
+                None => false,
+            };
+
             html! {
                 <option
+                    selected={selected}
                     value={opt.id.clone()}>
                     {opt.name.clone()}
                 </option>
@@ -143,6 +194,7 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
             <tr key={"requirement_add"}>
                 <td>
                     <select
+                        autocomplete="off"
                         onchange={on_ingredient_select}>
                         <option
                             hidden=true
@@ -150,7 +202,11 @@ pub fn requirement_add_item(props: &RequirementAddItemProps) -> Html {
                             selected={state_cloned.selected_ingredient.is_none()}>
                             {"Ingredient"}
                         </option>
-                        {options}
+                        <option
+                            value="new">
+                            {"Nouvel ingredient"}
+                        </option>
+                        {option_html}
                     </select>
                 </td>
                 <td>

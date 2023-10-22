@@ -184,7 +184,10 @@ pub fn app() -> Html {
                                     <RecipeWindow recipe_id={Some(id)}/>
                                 },
                                 Route::EditRecipe { id } => html! {
-                                    <RecipeEditWindow recipe_id={id}/>
+                                    <RecipeEditWindow
+                                        recipe_id={id}
+                                        ingredient_cache_refresh={update_ingredient_cache}
+                                    />
                                 },
                                 Route::ListIngredients => html! {
                                     <div class={"ingredient-main"}>

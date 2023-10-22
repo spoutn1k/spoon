@@ -27,6 +27,7 @@ use yew_router::prelude::*;
 #[derive(Properties, PartialEq, Clone)]
 pub struct RecipeEditWindowProps {
     pub recipe_id: String,
+    pub ingredient_cache_refresh: Callback<()>,
 }
 
 enum RecipeEditWindowActions {
@@ -42,10 +43,10 @@ enum RecipeEditWindowActions {
     AddDependency(String, String, bool),
     UpdateDependency(String, String, bool),
     DeleteDependency(String),
+    */
     AddTag(String),
     DeleteTag(String),
     //Reset,
-    */
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -104,6 +105,18 @@ impl Reducible for RecipeEditWindowState {
             RecipeEditWindowActions::DeleteRequirement(req) => {
                 new_state.new_recipe.requirements.remove(&req);
             }
+            RecipeEditWindowActions::AddTag(label_name) => {
+                new_state.new_recipe.tags.insert(ladle::models::LabelIndex {
+                    id: String::default(),
+                    name: label_name.clone(),
+                });
+            }
+            RecipeEditWindowActions::DeleteTag(label_name) => {
+                new_state
+                    .new_recipe
+                    .tags
+                    .retain(|lidx| lidx.name != label_name);
+            }
         }
 
         new_state.into()
@@ -115,33 +128,32 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
     let navigator = use_navigator().unwrap();
 
     let state = use_reducer(RecipeEditWindowState::default);
-
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
-    let edit_context = use_state(|| EditionContext {
-        recipe_id: props.recipe_id.clone(),
-    });
 
     let state_cloned = state.clone();
     let props_cloned = props.clone();
     let context_cloned = context.clone();
-    let refresh_recipe: Callback<()> = Callback::from(move |_| {
-        let recipe_id = props_cloned.recipe_id.clone();
-
-        let state_cloned = state_cloned.clone();
-        let context_cloned = context_cloned.clone();
-        wasm_bindgen_futures::spawn_local(async move {
-            match ladle::recipe_get(
-                context_cloned.settings.server_url.as_str(),
-                recipe_id.as_str(),
-            )
-            .await
-            {
-                Ok(recipe) => state_cloned.dispatch(RecipeEditWindowActions::UpdateRecipe(recipe)),
-                Err(message) => context_cloned
-                    .status
-                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
-            }
-        });
+    let fetch_recipe: Callback<()> = Callback::from(move |_| {
+        if state_cloned.original_recipe.is_none() {
+            let state_cloned = state_cloned.clone();
+            let props_cloned = props_cloned.clone();
+            let context_cloned = context_cloned.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                match ladle::recipe_get(
+                    context_cloned.settings.server_url.as_str(),
+                    &props_cloned.recipe_id.clone(),
+                )
+                .await
+                {
+                    Ok(recipe) => {
+                        state_cloned.dispatch(RecipeEditWindowActions::UpdateRecipe(recipe))
+                    }
+                    Err(message) => context_cloned
+                        .status
+                        .emit(Message::Error(message.to_string(), chrono::Utc::now())),
+                }
+            });
+        }
     });
 
     let state_cloned = state.clone();
@@ -242,6 +254,36 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
                     })
                     .for_each(drop);
 
+                let deleted_tags: Vec<_> = original.tags.difference(&recipe.tags).collect();
+
+                let requests = deleted_tags.iter().map(|label| {
+                    ladle::recipe_untag(&context_cloned.settings.server_url, &recipe.id, &label.id)
+                });
+
+                join_all(requests)
+                    .await
+                    .iter()
+                    .map(|response| match response {
+                        Ok(_) => (),
+                        Err(message) => log::error!("{}", message),
+                    })
+                    .for_each(drop);
+
+                let added_tags: Vec<_> = recipe.tags.difference(&original.tags).collect();
+
+                let requests = added_tags.iter().map(|label| {
+                    ladle::recipe_tag(&context_cloned.settings.server_url, &recipe.id, &label.name)
+                });
+
+                join_all(requests)
+                    .await
+                    .iter()
+                    .map(|response| match response {
+                        Ok(_) => (),
+                        Err(message) => log::error!("{}", message),
+                    })
+                    .for_each(drop);
+
                 match ladle::recipe_update(
                     &context_cloned.settings.server_url,
                     &recipe.id,
@@ -301,8 +343,8 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
             .collect()
     });
 
-    let refresh_recipe_cloned = refresh_recipe.clone();
-    use_effect_with_deps(move |_| refresh_recipe_cloned.emit(()), props.clone());
+    let fetch_recipe_cloned = fetch_recipe.clone();
+    use_effect_with_deps(move |_| fetch_recipe_cloned.emit(()), props.clone());
 
     let state_cloned = state.clone();
     let recipe = &state_cloned.new_recipe;
@@ -313,7 +355,7 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
             html! {
                 <DependencyEditItem
                     dependency={d.clone()}
-                    refresh={refresh_recipe.clone()}
+                    refresh={fetch_recipe.clone()}
                 />
             }
         })
@@ -357,14 +399,25 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
         },
     );
 
+    let state_cloned = state.clone();
+    let delete_tag = Callback::from(move |label: String| {
+        state_cloned.dispatch(RecipeEditWindowActions::DeleteTag(label));
+    });
+
+    let state_cloned = state.clone();
+    let add_tag = Callback::from(move |label: String| {
+        state_cloned.dispatch(RecipeEditWindowActions::AddTag(label));
+    });
+
     let tags = recipe
         .tags
         .iter()
         .map(|t| {
+            let delete_tag_cloned = delete_tag.clone();
             html! {
                 <TagEditItem
                     label={t.clone()}
-                    refresh={refresh_recipe.clone()}
+                    delete_tag={delete_tag_cloned}
                 />
             }
         })
@@ -374,57 +427,56 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
     let state_cloned = state.clone();
     html! {
         <div class="recipe-display edit">
-            <ContextProvider<EditionContext> context={(*edit_context).clone()}>
-                <div>
-                    <input type="text"
-                        class="recipe-name edit"
-                        onchange={on_name_edit}
-                        value={state_cloned.new_recipe.name.clone()}
-                    />
-                </div>
-                <div>
-                    <input type="text"
-                        class="recipe-author edit"
-                        onchange={on_author_edit}
-                        value={state_cloned.new_recipe.author.clone()}
-                    />
-                </div>
-                <table>
-                    {dependencies}
-                    <DependencyAddItem
-                        refresh={refresh_recipe.clone()}
-                    />
-                </table>
-                <table>
-                    {requirements}
-                    <RequirementAddItem
-                        create_requirement={create_requirement}
-                        ingredient_blacklist={ingredients_in_use}
-                    />
-                </table>
-                <textarea
-                    class="recipe-directions edit"
-                    onchange={on_directions_edit}
-                    value={state_cloned.new_recipe.directions.clone()}
+            <div>
+                <input type="text"
+                    class="recipe-name edit"
+                    onchange={on_name_edit}
+                    value={state_cloned.new_recipe.name.clone()}
                 />
-                <ul>
-                    {tags}
-                    <TagAddItem
-                        refresh={refresh_recipe.clone()}
-                    />
-                </ul>
-                <div class="options">
-                    <button onclick={on_update_clicked}>{"Update"}</button>
-                    <button onclick={on_delete_clicked}>{"Delete"}</button>
-                    <button
-                        class={classes!("recipe-deselect")}
-                        onclick={Callback::from(move |_| {
-                            nc.back();
-                        })}>
-                        {"Close"}
-                    </button>
-                </div>
-            </ContextProvider<EditionContext>>
+            </div>
+            <div>
+                <input type="text"
+                    class="recipe-author edit"
+                    onchange={on_author_edit}
+                    value={state_cloned.new_recipe.author.clone()}
+                />
+            </div>
+            <table>
+                {dependencies}
+                <DependencyAddItem
+                    refresh={fetch_recipe.clone()}
+                />
+            </table>
+            <table>
+                {requirements}
+                <RequirementAddItem
+                    create_requirement={create_requirement}
+                    ingredient_blacklist={ingredients_in_use}
+                    ingredient_cache_refresh={props.ingredient_cache_refresh.clone()}
+                />
+            </table>
+            <textarea
+                class="recipe-directions edit"
+                onchange={on_directions_edit}
+                value={state_cloned.new_recipe.directions.clone()}
+            />
+            <ul>
+                {tags}
+                <TagAddItem
+                    add_tag={add_tag}
+                />
+            </ul>
+            <div class="options">
+                <button onclick={on_update_clicked}>{"Update"}</button>
+                <button onclick={on_delete_clicked}>{"Delete"}</button>
+                <button
+                    class={classes!("recipe-deselect")}
+                    onclick={Callback::from(move |_| {
+                        nc.back();
+                    })}>
+                    {"Close"}
+                </button>
+            </div>
         </div>
     }
 }

@@ -303,6 +303,31 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
         });
     });
 
+    let nc = navigator.clone();
+    let state_cloned = state.clone();
+    let update = on_update_clicked.clone();
+    let on_exit_clicked = Callback::from(move |_| {
+        if let Some(recipe) = &state_cloned.original_recipe {
+            if recipe.requirements != state_cloned.new_recipe.requirements
+                || recipe.name != state_cloned.new_recipe.name
+                || recipe.author != state_cloned.new_recipe.author
+                || recipe.directions != state_cloned.new_recipe.directions
+                || recipe.dependencies != state_cloned.new_recipe.dependencies
+                || recipe.tags != state_cloned.new_recipe.tags
+            {
+                match web_sys::window()
+                    .unwrap()
+                    .confirm_with_message("Save before exiting ?")
+                {
+                    Ok(true) => update.emit(yew::MouseEvent::new("").unwrap()),
+                    _ => (),
+                }
+            }
+        }
+
+        nc.back();
+    });
+
     let state_cloned = state.clone();
     let on_name_edit = Callback::from(move |e: Event| {
         let name = e
@@ -471,9 +496,7 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
                 <button onclick={on_delete_clicked}>{"Delete"}</button>
                 <button
                     class={classes!("recipe-deselect")}
-                    onclick={Callback::from(move |_| {
-                        nc.back();
-                    })}>
+                    onclick={on_exit_clicked}>
                     {"Close"}
                 </button>
             </div>

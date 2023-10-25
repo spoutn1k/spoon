@@ -9,9 +9,6 @@ pub struct RequirementEditItemProps {
     pub delete_requirement: Callback<()>,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
-struct RequirementEditItemState {}
-
 #[function_component(RequirementEditItem)]
 pub fn requirement_edit_item(props: &RequirementEditItemProps) -> Html {
     let props_cloned = props.clone();

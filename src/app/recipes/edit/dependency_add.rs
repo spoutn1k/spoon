@@ -1,108 +1,188 @@
-use crate::app::recipes::edit::EditionContext;
-use crate::app::status_bar::Message;
 use crate::app::AppContext;
-use std::ops::Deref;
+use ladle::models::RecipeIndex;
+use std::rc::Rc;
+use unidecode::unidecode;
 use wasm_bindgen::JsCast;
-use web_sys::{EventTarget, HtmlInputElement};
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct DependencyAddItemProps {
-    pub refresh: Callback<()>,
+    pub create_dependency: Callback<(ladle::models::RecipeIndex, String, bool), ()>,
+    pub recipe_blacklist: Callback<(), Vec<String>>,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Default)]
+enum DependencyAddItemMode {
+    #[default]
+    Collapsed,
+    Open,
+}
+
+enum DependencyAddItemAction {
+    SetRecipe(ladle::models::RecipeIndex),
+    SetQuantity(String),
+    ToggleOptional,
+    Close,
+    Open,
+}
+
+#[derive(PartialEq, Clone, Default)]
 struct DependencyAddItemState {
-    dependency_id_buffer: Option<String>,
-    choices: Vec<ladle::models::RecipeIndex>,
+    mode: DependencyAddItemMode,
+    selected_recipe: Option<ladle::models::RecipeIndex>,
+    quantity_buffer: String,
+    optional: bool,
+}
+
+impl Reducible for DependencyAddItemState {
+    type Action = DependencyAddItemAction;
+
+    fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
+        let mut new_state: Self = (*self).clone();
+
+        match action {
+            DependencyAddItemAction::SetRecipe(ing) => {
+                new_state.selected_recipe = Some(ing.clone())
+            }
+            DependencyAddItemAction::SetQuantity(qt) => new_state.quantity_buffer = qt,
+            DependencyAddItemAction::ToggleOptional => new_state.optional = !new_state.optional,
+            DependencyAddItemAction::Close => new_state = DependencyAddItemState::default(),
+            DependencyAddItemAction::Open => new_state.mode = DependencyAddItemMode::Open,
+        }
+
+        new_state.into()
+    }
 }
 
 #[function_component(DependencyAddItem)]
 pub fn dependency_add_item(props: &DependencyAddItemProps) -> Html {
-    let state = use_state(|| DependencyAddItemState {
-        dependency_id_buffer: None,
-        choices: vec![],
-    });
-
+    let state = use_reducer(DependencyAddItemState::default);
     let context = use_context::<AppContext>().unwrap_or(AppContext::default());
-    let edition_context = use_context::<EditionContext>().unwrap_or(EditionContext::default());
 
     let state_cloned = state.clone();
     let context_cloned = context.clone();
-    let refresh_selection = Callback::from(move |_| {
-        let state_cloned = state_cloned.clone();
-        let context_cloned = context_cloned.clone();
-        wasm_bindgen_futures::spawn_local(async move {
-            let mut data = state_cloned.deref().clone();
-            match ladle::recipe_index(context_cloned.settings.server_url.as_str(), "").await {
-                Ok(mut recipes) => {
-                    recipes.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
-                    data.choices = recipes;
-                    state_cloned.set(data);
-                }
-                Err(message) => context_cloned
-                    .status
-                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
+    let on_recipe_select = Callback::from(move |e: Event| {
+        let selected_recipe_id = e
+            .target()
+            .expect("")
+            .unchecked_into::<HtmlInputElement>()
+            .value();
+
+        if let Some(recipe) = context_cloned
+            .recipe_cache
+            .iter()
+            .find(|index| index.id == selected_recipe_id)
+        {
+            state_cloned.dispatch(DependencyAddItemAction::SetRecipe(recipe.clone()));
+        }
+    });
+
+    let state_cloned = state.clone();
+    let on_quantity_edit = Callback::from(move |e: Event| {
+        let value = e
+            .target()
+            .expect("")
+            .unchecked_into::<HtmlInputElement>()
+            .value();
+        state_cloned.dispatch(DependencyAddItemAction::SetQuantity(value));
+    });
+
+    let state_cloned = state.clone();
+    let on_optional_clicked = Callback::from(move |_| {
+        state_cloned.dispatch(DependencyAddItemAction::ToggleOptional);
+    });
+
+    let props_cloned = props.clone();
+    let state_cloned = state.clone();
+    let create_dependency = Callback::from(move |_| {
+        if let Some(recipe) = &state_cloned.selected_recipe {
+            props_cloned.create_dependency.emit((
+                recipe.clone(),
+                state_cloned.quantity_buffer.clone(),
+                state_cloned.optional,
+            ));
+
+            state_cloned.dispatch(DependencyAddItemAction::Close);
+        }
+    });
+
+    let blacklist = props.recipe_blacklist.emit(());
+    let mut options: Vec<RecipeIndex> = context
+        .recipe_cache
+        .iter()
+        .filter(|idx| !blacklist.contains(&idx.id))
+        .cloned()
+        .collect();
+    options.sort_by(|lhs, rhs| unidecode(&lhs.name).cmp(&unidecode(&rhs.name)));
+    let option_html = options
+        .iter()
+        .map(|opt| {
+            let selected = match &state.selected_recipe {
+                Some(idx) => &idx == &opt,
+                None => false,
+            };
+
+            html! {
+                <option
+                    selected={selected}
+                    value={opt.id.clone()}>
+                    {opt.name.clone()}
+                </option>
             }
         })
-    });
-
-    use_effect_with_deps(move |_| refresh_selection.emit(()), props.clone());
-
-    let state_cloned = state.clone();
-    let on_dependency_select = Callback::from(move |e: Event| {
-        let mut data = state_cloned.deref().clone();
-        let target: EventTarget = e.target().expect("");
-        data.dependency_id_buffer = Some(target.unchecked_into::<HtmlInputElement>().value());
-        state_cloned.set(data);
-    });
-
-    let state_cloned = state.clone();
-    let context_cloned = context.clone();
-    let props_cloned = props.clone();
-    let recipe_id = edition_context.recipe_id;
-    let create_dependency = Callback::from(move |_| {
-        let state_cloned = state_cloned.clone();
-        let context_cloned = context_cloned.clone();
-        let props_cloned = props_cloned.clone();
-        let recipe_id = recipe_id.clone();
-        wasm_bindgen_futures::spawn_local(async move {
-            let mut data = state_cloned.deref().clone();
-            match ladle::dependency_create(
-                context_cloned.settings.server_url.as_str(),
-                recipe_id.as_str(),
-                data.dependency_id_buffer.clone().unwrap().as_str(),
-                "",
-                false,
-            )
-            .await
-            {
-                Ok(_) => {
-                    props_cloned.refresh.emit(());
-                    data.dependency_id_buffer = None;
-                }
-                Err(message) => context_cloned
-                    .status
-                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
-            }
-
-            state_cloned.set(data);
-        });
-    });
-
-    let options = state
-        .choices
-        .iter()
-        .map(|r| html! {<option value={r.id.clone()}>{r.name.clone()}</option>})
         .collect::<Html>();
 
+    let state_cloned = state.clone();
+    let on_add_clicked = Callback::from(move |_| {
+        state_cloned.dispatch(DependencyAddItemAction::Open);
+    });
+
+    let state_cloned = state.clone();
     html! {
-        <tr key={"dependency_add"}>
-            <td><select onchange={on_dependency_select}>
-                <option hidden={true} disabled={true} selected={true}>{"Recipes"}</option>
-                {options}
-            </select></td>
-            <td><button onclick={create_dependency}>{"Add"}</button></td>
-        </tr>
+        if state_cloned.mode == DependencyAddItemMode::Collapsed {
+            <button
+                onclick={on_add_clicked}>
+                {"Ajouter une recette necessaire"}
+            </button>
+        } else {
+            <tr key={"dependency_add"}>
+                <td>
+                    <select
+                        autocomplete="off"
+                        onchange={on_recipe_select}>
+                        <option
+                            hidden=true
+                            disabled=true
+                            selected={state_cloned.selected_recipe.is_none()}>
+                            {"Recipe"}
+                        </option>
+                        {option_html}
+                    </select>
+                </td>
+                <td>
+                    <input
+                        type="text"
+                        placeholder="Quantity"
+                        value={state.quantity_buffer.clone()}
+                        onchange={on_quantity_edit}
+                    />
+                </td>
+                <td>
+                    <input
+                        type="checkbox"
+                        checked={state.optional}
+                        onclick={on_optional_clicked}
+                    />
+                </td>
+                <td>
+                    <button
+                        disabled={state_cloned.selected_recipe.is_none()}
+                        onclick={create_dependency}>
+                        {"Add"}
+                    </button>
+                </td>
+            </tr>
+        }
     }
 }

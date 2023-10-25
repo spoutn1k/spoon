@@ -13,8 +13,6 @@ use requirement_edit::RequirementEditItem;
 use tag_add::TagAddItem;
 use tag_edit::TagEditItem;
 
-use context::EditionContext;
-
 use crate::app::{status_bar::Message, AppContext, Route};
 use futures::future::join_all;
 use std::collections::BTreeSet;
@@ -39,11 +37,11 @@ enum RecipeEditWindowActions {
     AddRequirement(ladle::models::IngredientIndex, String, bool),
     UpdateRequirement(ladle::models::Requirement, String, bool),
     DeleteRequirement(ladle::models::Requirement),
-    /*
-    AddDependency(String, String, bool),
-    UpdateDependency(String, String, bool),
-    DeleteDependency(String),
-    */
+
+    AddDependency(ladle::models::RecipeIndex, String, bool),
+    UpdateDependency(ladle::models::Dependency, String, bool),
+    DeleteDependency(ladle::models::Dependency),
+
     AddTag(String),
     DeleteTag(String),
     //Reset,
@@ -105,6 +103,36 @@ impl Reducible for RecipeEditWindowState {
             RecipeEditWindowActions::DeleteRequirement(req) => {
                 new_state.new_recipe.requirements.remove(&req);
             }
+            RecipeEditWindowActions::AddDependency(recipe, quantity, optional) => {
+                let new_dependency = ladle::models::Dependency {
+                    recipe: recipe.clone(),
+                    quantity,
+                    optional,
+                };
+
+                if self
+                    .new_recipe
+                    .dependencies
+                    .iter()
+                    .find(|r| &r.recipe == &recipe)
+                    .is_none()
+                {
+                    new_state.new_recipe.dependencies.insert(new_dependency);
+                }
+            }
+            RecipeEditWindowActions::UpdateDependency(dep, quantity, optional) => {
+                let new_dependency = ladle::models::Dependency {
+                    recipe: dep.recipe.clone(),
+                    quantity,
+                    optional,
+                };
+
+                new_state.new_recipe.dependencies.remove(&dep);
+                new_state.new_recipe.dependencies.insert(new_dependency);
+            }
+            RecipeEditWindowActions::DeleteDependency(dep) => {
+                new_state.new_recipe.dependencies.remove(&dep);
+            }
             RecipeEditWindowActions::AddTag(label_name) => {
                 new_state.new_recipe.tags.insert(ladle::models::LabelIndex {
                     id: String::default(),
@@ -133,7 +161,7 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
     let state_cloned = state.clone();
     let props_cloned = props.clone();
     let context_cloned = context.clone();
-    let fetch_recipe: Callback<()> = Callback::from(move |_| {
+    let fetch_recipe = Callback::from(move |_| {
         if state_cloned.original_recipe.is_none() {
             let state_cloned = state_cloned.clone();
             let props_cloned = props_cloned.clone();
@@ -194,14 +222,77 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
 
     let state_cloned = state.clone();
     let context_cloned = context.clone();
+    let fetch_cloned = fetch_recipe.clone();
     let on_update_clicked = Callback::from(move |_| {
         let state_cloned = state_cloned.clone();
         let context_cloned = context_cloned.clone();
+        let fetch_cloned = fetch_cloned.clone();
 
         wasm_bindgen_futures::spawn_local(async move {
-            if let Some(original) = &state_cloned.original_recipe {
-                let recipe = &state_cloned.new_recipe;
+            if state_cloned.original_recipe.is_none() {
+                return;
+            }
 
+            let original = &state_cloned.original_recipe.as_ref().unwrap();
+            let recipe = &state_cloned.new_recipe;
+
+            // Dependencies
+            {
+                let common_dependencies = &original
+                    .dependencies
+                    .intersection(&recipe.dependencies)
+                    .cloned()
+                    .collect();
+
+                let missing_dependencies = original
+                    .dependencies
+                    .difference(common_dependencies)
+                    .collect::<BTreeSet<&ladle::models::Dependency>>();
+
+                let requests = missing_dependencies.iter().map(|dependency| {
+                    ladle::dependency_delete(
+                        &context_cloned.settings.server_url,
+                        &recipe.id,
+                        &dependency.recipe.id,
+                    )
+                });
+
+                join_all(requests)
+                    .await
+                    .iter()
+                    .map(|response| match response {
+                        Ok(_) => (),
+                        Err(message) => log::error!("{}", message),
+                    })
+                    .for_each(drop);
+
+                let new_dependencies = recipe
+                    .dependencies
+                    .difference(common_dependencies)
+                    .collect::<BTreeSet<&ladle::models::Dependency>>();
+
+                let requests = new_dependencies.iter().map(|dependency| {
+                    ladle::dependency_create(
+                        &context_cloned.settings.server_url,
+                        &recipe.id,
+                        &dependency.recipe.id,
+                        &dependency.quantity,
+                        dependency.optional,
+                    )
+                });
+
+                join_all(requests)
+                    .await
+                    .iter()
+                    .map(|response| match response {
+                        Ok(_) => (),
+                        Err(message) => log::error!("{}", message),
+                    })
+                    .for_each(drop);
+            }
+
+            // Requirements
+            {
                 let common_requirements = &original
                     .requirements
                     .intersection(&recipe.requirements)
@@ -253,52 +344,58 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
                         Err(message) => log::error!("{}", message),
                     })
                     .for_each(drop);
+            }
 
-                let deleted_tags: Vec<_> = original.tags.difference(&recipe.tags).collect();
+            let deleted_tags: Vec<_> = original.tags.difference(&recipe.tags).collect();
 
-                let requests = deleted_tags.iter().map(|label| {
-                    ladle::recipe_untag(&context_cloned.settings.server_url, &recipe.id, &label.id)
-                });
+            let requests = deleted_tags.iter().map(|label| {
+                ladle::recipe_untag(&context_cloned.settings.server_url, &recipe.id, &label.id)
+            });
 
-                join_all(requests)
-                    .await
-                    .iter()
-                    .map(|response| match response {
-                        Ok(_) => (),
-                        Err(message) => log::error!("{}", message),
-                    })
-                    .for_each(drop);
-
-                let added_tags: Vec<_> = recipe.tags.difference(&original.tags).collect();
-
-                let requests = added_tags.iter().map(|label| {
-                    ladle::recipe_tag(&context_cloned.settings.server_url, &recipe.id, &label.name)
-                });
-
-                join_all(requests)
-                    .await
-                    .iter()
-                    .map(|response| match response {
-                        Ok(_) => (),
-                        Err(message) => log::error!("{}", message),
-                    })
-                    .for_each(drop);
-
-                match ladle::recipe_update(
-                    &context_cloned.settings.server_url,
-                    &recipe.id,
-                    Some(&recipe.name),
-                    Some(&recipe.author),
-                    Some(&recipe.directions),
-                    None,
-                )
+            join_all(requests)
                 .await
-                {
-                    Ok(_) => {}
-                    Err(message) => context_cloned
-                        .status
-                        .emit(Message::Error(message.to_string(), chrono::Utc::now())),
+                .iter()
+                .map(|response| match response {
+                    Ok(_) => (),
+                    Err(message) => log::error!("{}", message),
+                })
+                .for_each(drop);
+
+            let added_tags: Vec<_> = recipe.tags.difference(&original.tags).collect();
+
+            let requests = added_tags.iter().map(|label| {
+                ladle::recipe_tag(&context_cloned.settings.server_url, &recipe.id, &label.name)
+            });
+
+            join_all(requests)
+                .await
+                .iter()
+                .map(|response| match response {
+                    Ok(_) => (),
+                    Err(message) => log::error!("{}", message),
+                })
+                .for_each(drop);
+
+            match ladle::recipe_update(
+                &context_cloned.settings.server_url,
+                &recipe.id,
+                Some(&recipe.name),
+                Some(&recipe.author),
+                Some(&recipe.directions),
+                None,
+            )
+            .await
+            {
+                Ok(_) => {
+                    fetch_cloned.emit(());
+                    context_cloned.status.emit(Message::Success(
+                        String::from("Recette sauvegardee"),
+                        chrono::Utc::now(),
+                    ))
                 }
+                Err(message) => context_cloned
+                    .status
+                    .emit(Message::Error(message.to_string(), chrono::Utc::now())),
             }
         });
     });
@@ -368,6 +465,19 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
             .collect()
     });
 
+    let state_cloned = state.clone();
+    let recipes_in_use = Callback::from(move |()| -> Vec<String> {
+        let mut others: Vec<_> = state_cloned
+            .new_recipe
+            .dependencies
+            .iter()
+            .map(|r| r.recipe.id.clone())
+            .collect();
+
+        others.push(state_cloned.new_recipe.id.clone());
+        others
+    });
+
     let fetch_recipe_cloned = fetch_recipe.clone();
     use_effect_with_deps(move |_| fetch_recipe_cloned.emit(()), props.clone());
 
@@ -377,10 +487,27 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
         .dependencies
         .iter()
         .map(|d| {
+            let state_cloned = state.clone();
+            let dc = d.clone();
+            let update = Callback::from(move |(quantity, optional): (String, bool)| {
+                state_cloned.dispatch(RecipeEditWindowActions::UpdateDependency(
+                    dc.clone(),
+                    quantity,
+                    optional,
+                ));
+            });
+
+            let state_cloned = state.clone();
+            let dc = d.clone();
+            let delete = Callback::from(move |_| {
+                state_cloned.dispatch(RecipeEditWindowActions::DeleteDependency(dc.clone()));
+            });
+
             html! {
                 <DependencyEditItem
                     dependency={d.clone()}
-                    refresh={fetch_recipe.clone()}
+                    update_dependency={update}
+                    delete_dependency={delete}
                 />
             }
         })
@@ -425,6 +552,15 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
     );
 
     let state_cloned = state.clone();
+    let create_dependency = Callback::from(
+        move |(recipe, quantity, optional): (ladle::models::RecipeIndex, String, bool)| {
+            state_cloned.dispatch(RecipeEditWindowActions::AddDependency(
+                recipe, quantity, optional,
+            ));
+        },
+    );
+
+    let state_cloned = state.clone();
     let delete_tag = Callback::from(move |label: String| {
         state_cloned.dispatch(RecipeEditWindowActions::DeleteTag(label));
     });
@@ -448,7 +584,7 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
         })
         .collect::<Html>();
 
-    let nc = navigator.clone();
+    //let nc = navigator.clone();
     let state_cloned = state.clone();
     html! {
         <div class="recipe-display edit">
@@ -469,7 +605,8 @@ pub fn edit_window(props: &RecipeEditWindowProps) -> Html {
             <table>
                 {dependencies}
                 <DependencyAddItem
-                    refresh={fetch_recipe.clone()}
+                    create_dependency={create_dependency}
+                    recipe_blacklist={recipes_in_use}
                 />
             </table>
             <table>

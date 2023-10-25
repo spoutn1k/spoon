@@ -9,7 +9,7 @@ use ingredients::{
     list::IngredientList,
     show::IngredientView,
 };
-use ladle::models::IngredientIndex;
+use ladle::models::{IngredientIndex, RecipeIndex};
 use recipes::edit::RecipeEditWindow;
 use recipes::list::RecipeList;
 use recipes::window::RecipeWindow;
@@ -62,6 +62,7 @@ struct AppContext {
     settings: AppSettings,
     status: Callback<Message>,
     ingredient_cache: HashSet<IngredientIndex>,
+    recipe_cache: HashSet<RecipeIndex>,
 }
 
 impl Default for AppContext {
@@ -70,6 +71,7 @@ impl Default for AppContext {
             settings: AppSettings::default(),
             status: Callback::from(|_| ()),
             ingredient_cache: HashSet::new(),
+            recipe_cache: HashSet::new(),
         }
     }
 }
@@ -99,12 +101,15 @@ pub fn app() -> Html {
     let ingredient_cache = use_local_storage::<HashSet<ladle::models::IngredientIndex>>(
         "ingredient_cache".to_string(),
     );
+    let recipe_cache =
+        use_local_storage::<HashSet<ladle::models::RecipeIndex>>("recipe_cache".to_string());
 
     // Data accessible by all children
     let context = use_state(|| AppContext {
         settings: (*persistent_settings).clone().unwrap_or_default(),
         status: display_status,
         ingredient_cache: (*ingredient_cache).clone().unwrap_or_default(),
+        recipe_cache: (*recipe_cache).clone().unwrap_or_default(),
     });
 
     // Callback to trigger a refresh of the ingredient cache
@@ -130,10 +135,37 @@ pub fn app() -> Html {
         });
     });
 
+    // Callback to trigger a refresh of the recipe cache
+    let context_cloned = context.clone();
+    let update_recipe_cache = Callback::from(move |_| {
+        let context_cloned = context_cloned.clone();
+        let recipe_cache = recipe_cache.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut data = context_cloned.deref().clone();
+            match ladle::recipe_index(&context_cloned.settings.server_url, "").await {
+                Ok(recipes) => {
+                    let set: HashSet<_> = recipes.iter().cloned().collect();
+                    data.recipe_cache = set.clone();
+                    // Make it available to child components
+                    context_cloned.set(data);
+                    // Store it on disk
+                    recipe_cache.set(set);
+                }
+                Err(error) => context_cloned
+                    .status
+                    .emit(Message::Error(error.to_string(), chrono::Utc::now())),
+            }
+        });
+    });
+
     // On change of the 'update' field of the state, fetch and cache ingredients
-    let effect = update_ingredient_cache.clone();
+    let update_ing = update_ingredient_cache.clone();
+    let update_rec = update_recipe_cache.clone();
     use_effect_with_deps(
-        move |_| effect.emit(()),
+        move |_| {
+            update_ing.emit(());
+            update_rec.emit(());
+        },
         context.settings.server_url.clone(),
     );
 
